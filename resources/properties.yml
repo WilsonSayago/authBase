@@ -1,0 +1,3 @@
+middleware:
+  jwt:
+    secret-key: tuSecretKey
