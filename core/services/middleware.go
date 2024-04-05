@@ -97,10 +97,14 @@ func (m *Middleware[T]) GetToken(userId string) (string, error) {
 	return ss, nil
 }
 
-func PoliciesGuard(fn gin.HandlerFunc, entity domain.EntityEnum, operation domain.OperationEnum) gin.HandlerFunc {
+func PoliciesGuard(fn gin.HandlerFunc,
+	fnValidate func(interface{}, domain.EntityEnum, domain.OperationEnum) bool,
+	entity domain.EntityEnum,
+	operation domain.OperationEnum) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := GetUserToken[domain.UserGeneric](c)
-		if user.Id == "" || (!user.IsAdmin && !user.HasPermission(entity, operation)) {
+		user := GetUserToken(c)
+		if fnValidate(user, entity, operation) {
+			//user.Id == "" || (!user.IsAdmin && !user.HasPermission(entity, operation)) {
 			c.Status(http.StatusUnauthorized)
 			return
 		}
@@ -108,11 +112,10 @@ func PoliciesGuard(fn gin.HandlerFunc, entity domain.EntityEnum, operation domai
 	}
 }
 
-func GetUserToken[T any](c *gin.Context) T {
+func GetUserToken(c *gin.Context) interface{} {
 	user, exist := c.Get("user")
 	if !exist {
-		var zeroValue T
-		return zeroValue
+		return nil
 	}
-	return user.(T)
+	return user
 }
