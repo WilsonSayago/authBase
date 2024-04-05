@@ -97,7 +97,7 @@ func (m *Middleware[T]) GetToken(userId string) (string, error) {
 	return ss, nil
 }
 
-func PoliciesGuard[T any](fn gin.HandlerFunc, entity domain.EntityEnum, operation domain.OperationEnum) gin.HandlerFunc {
+func PoliciesGuard(fn gin.HandlerFunc, entity domain.EntityEnum, operation domain.OperationEnum) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := GetUserToken[domain.UserGeneric](c)
 		if user.Id == "" || (!user.IsAdmin && !user.HasPermission(entity, operation)) {
@@ -108,7 +108,7 @@ func PoliciesGuard[T any](fn gin.HandlerFunc, entity domain.EntityEnum, operatio
 	}
 }
 
-func (m *Middleware[T]) GetUserToken(c *gin.Context) T {
+func GetUserToken[T any](c *gin.Context) T {
 	user, exist := c.Get("user")
 	if !exist {
 		var zeroValue T

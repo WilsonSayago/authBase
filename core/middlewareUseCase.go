@@ -6,4 +6,5 @@ import (
 
 type MiddlewareUseCase interface {
 	AuthorizeJWT() gin.HandlerFunc
+	GetToken(id string) (string, error)
 }
