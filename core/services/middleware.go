@@ -108,7 +108,7 @@ func PoliciesGuard[T any](fn gin.HandlerFunc, entity domain.EntityEnum, operatio
 	}
 }
 
-func GetUserToken[T any](c *gin.Context) T {
+func (m *Middleware[T]) GetUserToken(c *gin.Context) T {
 	user, exist := c.Get("user")
 	if !exist {
 		var zeroValue T
