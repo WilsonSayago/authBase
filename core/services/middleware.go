@@ -2,10 +2,10 @@ package services
 
 import (
 	"fmt"
-	"github.com/WilsonSayago/middleware/internal/core"
-	domain "github.com/WilsonSayago/middleware/internal/core/domains"
-	"github.com/WilsonSayago/middleware/internal/core/ports"
-	"github.com/WilsonSayago/middleware/internal/infra/config/properties"
+	"github.com/WilsonSayago/middleware/core"
+	"github.com/WilsonSayago/middleware/core/domains"
+	"github.com/WilsonSayago/middleware/core/ports"
+	"github.com/WilsonSayago/middleware/infra/config/properties"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
