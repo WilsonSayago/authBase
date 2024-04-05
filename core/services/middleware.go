@@ -54,7 +54,7 @@ func (m *Middleware[T]) AuthorizeJWT() gin.HandlerFunc {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			return m.prop.Middleware.Jwt.SecretKey, nil
+			return []byte(m.prop.Middleware.Jwt.SecretKey), nil
 		})
 		
 		if token != nil && token.Valid {
