@@ -19,23 +19,23 @@ type MyCustomClaims struct {
 }
 
 var (
-	serviceSingleton *core.MiddlewareUseCase
+	serviceSingleton core.MiddlewareUseCase
 	serviceOnce      sync.Once
 )
 
 type Middleware[T any] struct {
-	port *ports.GenericPort[T]
+	port ports.GenericPort[T]
 	prop *properties.MiddlewareProp
 }
 
-func GetMiddlewareInstance[T any](port *ports.GenericPort[T], prop *properties.MiddlewareProp) *core.MiddlewareUseCase {
+func GetMiddlewareInstance[T any](port ports.GenericPort[T], prop *properties.MiddlewareProp) core.MiddlewareUseCase {
 	serviceOnce.Do(func() {
 		service := &Middleware[T]{
 			port: port,
 			prop: prop,
 		}
 		var IService core.MiddlewareUseCase = service
-		serviceSingleton = &IService
+		serviceSingleton = IService
 	})
 	return serviceSingleton
 }
@@ -59,7 +59,7 @@ func (m *Middleware[T]) AuthorizeJWT() gin.HandlerFunc {
 		
 		if token != nil && token.Valid {
 			userId := token.Claims.(jwt.MapClaims)["user"].(string)
-			user, err := (*m.port).FindById(userId)
+			user, err := m.port.FindById(userId)
 			if err != nil {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 				return
