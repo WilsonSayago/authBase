@@ -88,7 +88,7 @@ func (m *Middleware[T]) GetToken(userId string) (string, error) {
 	}
 	
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	ss, err := token.SignedString(m.prop.Middleware.Jwt.SecretKey)
+	ss, err := token.SignedString([]byte(m.prop.Middleware.Jwt.SecretKey))
 	
 	if err != nil {
 		fmt.Println(err)
