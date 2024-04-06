@@ -35,23 +35,23 @@ func NewUserGeneric(id string, email string, password string, permissions []Perm
 	return UserGeneric{id: id, email: email, password: password, permissions: permissions, isAdmin: isAdmin}
 }
 
-func (u *UserGeneric) GetId() string {
+func (u UserGeneric) GetId() string {
 	return u.id
 }
 
-func (u *UserGeneric) GetEmail() string {
+func (u UserGeneric) GetEmail() string {
 	return u.email
 }
 
-func (u *UserGeneric) GetPassword() string {
+func (u UserGeneric) GetPassword() string {
 	return u.password
 }
 
-func (u *UserGeneric) GetPermissions() []Permission {
+func (u UserGeneric) GetPermissions() []Permission {
 	return u.permissions
 }
 
-func (u *UserGeneric) GetIsAdmin() bool {
+func (u UserGeneric) GetIsAdmin() bool {
 	return u.isAdmin
 }
 
@@ -63,7 +63,7 @@ type Permission struct {
 	Delete bool
 }
 
-func (u *UserGeneric) HasPermission(entity EntityEnum, operation OperationEnum) bool {
+func (u UserGeneric) HasPermission(entity EntityEnum, operation OperationEnum) bool {
 	for _, permission := range u.GetPermissions() {
 		if permission.Entity == entity {
 			switch operation {
