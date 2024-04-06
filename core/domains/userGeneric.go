@@ -31,6 +31,10 @@ type UserGeneric struct {
 	isAdmin     bool
 }
 
+func NewUserGeneric(id string, email string, password string, permissions []Permission, isAdmin bool) UserGeneric {
+	return UserGeneric{id: id, email: email, password: password, permissions: permissions, isAdmin: isAdmin}
+}
+
 func (u *UserGeneric) GetId() string {
 	return u.id
 }
