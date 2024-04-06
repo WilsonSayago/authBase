@@ -102,7 +102,7 @@ func PoliciesGuard[T domain.IUserGeneric](fn gin.HandlerFunc,
 	entity domain.EntityEnum,
 	operation domain.OperationEnum) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		user := GetUserToken(c)
+		user := GetUserToken(c).(T)
 		if IsAuthorized[T](user, fnValidate, entity, operation) {
 			c.Status(http.StatusUnauthorized)
 			return
@@ -120,11 +120,10 @@ func GetUserToken(c *gin.Context) interface{} {
 }
 
 func IsAuthorized[T domain.IUserGeneric](
-	data interface{},
+	user T,
 	fnValidate func(interface{}, domain.EntityEnum, domain.OperationEnum) bool,
 	entity domain.EntityEnum, operation domain.OperationEnum) bool {
 
-	var user = data.(T)
 	if fnValidate != nil {
 		return fnValidate(user, entity, operation)
 	} else if user.GetId() == "" || (!user.GetIsAdmin() && !user.HasPermission(entity, operation)) {
