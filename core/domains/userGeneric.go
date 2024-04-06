@@ -14,12 +14,41 @@ const (
 	DELETE OperationEnum = "DELETE"
 )
 
+type IUserGeneric interface {
+	GetId() string
+	GetEmail() string
+	GetPassword() string
+	GetPermissions() []Permission
+	GetIsAdmin() bool
+	HasPermission(entity EntityEnum, operation OperationEnum) bool
+}
+
 type UserGeneric struct {
-	Id          string
-	Email       string
-	Password    string
-	Permissions []Permission
-	IsAdmin     bool
+	id          string
+	email       string
+	password    string
+	permissions []Permission
+	isAdmin     bool
+}
+
+func (u *UserGeneric) GetId() string {
+	return u.id
+}
+
+func (u *UserGeneric) GetEmail() string {
+	return u.email
+}
+
+func (u *UserGeneric) GetPassword() string {
+	return u.password
+}
+
+func (u *UserGeneric) GetPermissions() []Permission {
+	return u.permissions
+}
+
+func (u *UserGeneric) GetIsAdmin() bool {
+	return u.isAdmin
 }
 
 type Permission struct {
@@ -31,7 +60,7 @@ type Permission struct {
 }
 
 func (u *UserGeneric) HasPermission(entity EntityEnum, operation OperationEnum) bool {
-	for _, permission := range u.Permissions {
+	for _, permission := range u.GetPermissions() {
 		if permission.Entity == entity {
 			switch operation {
 			case CREATE:

@@ -48,7 +48,7 @@ func (m *Middleware[T]) AuthorizeJWT() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "It's necessary authorization header"})
 			return
 		}
-		
+
 		tokenString := authHeader[len(BearerSchema):]
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -56,7 +56,7 @@ func (m *Middleware[T]) AuthorizeJWT() gin.HandlerFunc {
 			}
 			return []byte(m.prop.Middleware.Jwt.SecretKey), nil
 		})
-		
+
 		if token != nil && token.Valid {
 			userId := token.Claims.(jwt.MapClaims)["user"].(string)
 			user, err := m.port.FindById(userId)
@@ -86,10 +86,10 @@ func (m *Middleware[T]) GetToken(userId string) (string, error) {
 			//Audience:  []string{"somebody_else"},
 		},
 	}
-	
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	ss, err := token.SignedString([]byte(m.prop.Middleware.Jwt.SecretKey))
-	
+
 	if err != nil {
 		fmt.Println(err)
 		return "", err
@@ -97,14 +97,13 @@ func (m *Middleware[T]) GetToken(userId string) (string, error) {
 	return ss, nil
 }
 
-func PoliciesGuard(fn gin.HandlerFunc,
+func PoliciesGuard[T domain.IUserGeneric](fn gin.HandlerFunc,
 	fnValidate func(interface{}, domain.EntityEnum, domain.OperationEnum) bool,
 	entity domain.EntityEnum,
 	operation domain.OperationEnum) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := GetUserToken(c)
-		if fnValidate(user, entity, operation) {
-			//user.Id == "" || (!user.IsAdmin && !user.HasPermission(entity, operation)) {
+		if IsAuthorized[T](user, fnValidate, entity, operation) {
 			c.Status(http.StatusUnauthorized)
 			return
 		}
@@ -118,4 +117,18 @@ func GetUserToken(c *gin.Context) interface{} {
 		return nil
 	}
 	return user
+}
+
+func IsAuthorized[T domain.IUserGeneric](
+	data interface{},
+	fnValidate func(interface{}, domain.EntityEnum, domain.OperationEnum) bool,
+	entity domain.EntityEnum, operation domain.OperationEnum) bool {
+
+	var user = data.(T)
+	if fnValidate != nil {
+		return fnValidate(user, entity, operation)
+	} else if user.GetId() == "" || (!user.GetIsAdmin() && !user.HasPermission(entity, operation)) {
+		return true
+	}
+	return false
 }
