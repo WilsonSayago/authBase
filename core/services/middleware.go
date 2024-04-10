@@ -40,6 +40,13 @@ func GetMiddlewareInstance[T any](port ports.GenericPort[T], prop *properties.Mi
 	return serviceSingleton
 }
 
+func NewMiddleware[T any](port ports.GenericPort[T], prop *properties.MiddlewareProp) Middleware[T] {
+	return Middleware[T]{
+		port: port,
+		prop: prop,
+	}
+}
+
 func (m *Middleware[T]) AuthorizeJWT() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		const BearerSchema = "Bearer "
@@ -98,8 +105,8 @@ func (m *Middleware[T]) GetToken(userId string) (string, error) {
 }
 
 func PoliciesGuard[T domain.IUserGeneric](fn gin.HandlerFunc,
-	fnValidate func(interface{}, domain.EntityEnum, domain.OperationEnum) bool,
-	entity domain.EntityEnum,
+	fnValidate func(interface{}, string, domain.OperationEnum) bool,
+	entity string,
 	operation domain.OperationEnum) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := GetUserToken(c).(T)
@@ -121,8 +128,8 @@ func GetUserToken(c *gin.Context) interface{} {
 
 func IsAuthorized[T domain.IUserGeneric](
 	user T,
-	fnValidate func(interface{}, domain.EntityEnum, domain.OperationEnum) bool,
-	entity domain.EntityEnum, operation domain.OperationEnum) bool {
+	fnValidate func(interface{}, string, domain.OperationEnum) bool,
+	entity string, operation domain.OperationEnum) bool {
 
 	if fnValidate != nil {
 		return fnValidate(user, entity, operation)

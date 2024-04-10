@@ -2,12 +2,6 @@ package properties
 
 import (
 	"log"
-	"sync"
-)
-
-var (
-	middlewareOnce sync.Once
-	middlewareProp *MiddlewareProp
 )
 
 type MiddlewareProp struct {
@@ -22,11 +16,8 @@ type Jwt struct {
 	SecretKey string `yaml:"secret-key"`
 }
 
-func GetMiddlewareProp() *MiddlewareProp {
-	middlewareOnce.Do(func() {
-		middlewareProp = &MiddlewareProp{}
-	})
-	return middlewareProp
+func NewMiddlewareProp() MiddlewareProp {
+	return MiddlewareProp{}
 }
 
 func (d *MiddlewareProp) Validate() {

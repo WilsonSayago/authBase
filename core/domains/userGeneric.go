@@ -1,11 +1,6 @@
 package domain
 
-type EntityEnum string
 type OperationEnum string
-
-const (
-	USERS EntityEnum = "USERS"
-)
 
 const (
 	CREATE OperationEnum = "CREATE"
@@ -20,7 +15,7 @@ type IUserGeneric interface {
 	GetPassword() string
 	GetPermissions() []Permission
 	GetIsAdmin() bool
-	HasPermission(entity EntityEnum, operation OperationEnum) bool
+	HasPermission(entity string, operation OperationEnum) bool
 }
 
 type UserGeneric struct {
@@ -56,14 +51,14 @@ func (u UserGeneric) GetIsAdmin() bool {
 }
 
 type Permission struct {
-	Entity EntityEnum
+	Entity string
 	Create bool
 	Read   bool
 	Update bool
 	Delete bool
 }
 
-func (u UserGeneric) HasPermission(entity EntityEnum, operation OperationEnum) bool {
+func (u UserGeneric) HasPermission(entity string, operation OperationEnum) bool {
 	for _, permission := range u.GetPermissions() {
 		if permission.Entity == entity {
 			switch operation {
