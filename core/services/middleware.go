@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"github.com/WilsonSayago/initModules"
 	"github.com/WilsonSayago/middleware/core"
 	"github.com/WilsonSayago/middleware/core/domains"
 	"github.com/WilsonSayago/middleware/core/ports"
@@ -9,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
-	"sync"
 	"time"
 )
 
@@ -18,10 +18,10 @@ type MyCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-var (
-	serviceSingleton core.MiddlewareUseCase
-	serviceOnce      sync.Once
-)
+//var (
+//	serviceSingleton core.MiddlewareUseCase
+//	serviceOnce      sync.Once
+//)
 
 type Middleware[T any] struct {
 	port ports.GenericPort[T]
@@ -29,15 +29,23 @@ type Middleware[T any] struct {
 }
 
 func GetMiddlewareInstance[T any](port ports.GenericPort[T], prop *properties.MiddlewareProp) core.MiddlewareUseCase {
-	serviceOnce.Do(func() {
-		service := &Middleware[T]{
+	//serviceOnce.Do(func() {
+	//	service := &Middleware[T]{
+	//		port: port,
+	//		prop: prop,
+	//	}
+	//	var IService core.MiddlewareUseCase = service
+	//	serviceSingleton = IService
+	//})
+	//return serviceSingleton
+	
+	instance := initModules.GetInstance("Middleware", func() interface{} {
+		return &Middleware[T]{
 			port: port,
 			prop: prop,
 		}
-		var IService core.MiddlewareUseCase = service
-		serviceSingleton = IService
 	})
-	return serviceSingleton
+	return instance.(*Middleware[T])
 }
 
 func NewMiddleware[T any](port ports.GenericPort[T], prop *properties.MiddlewareProp) Middleware[T] {
@@ -55,7 +63,7 @@ func (m *Middleware[T]) AuthorizeJWT() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "It's necessary authorization header"})
 			return
 		}
-
+		
 		tokenString := authHeader[len(BearerSchema):]
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -63,7 +71,7 @@ func (m *Middleware[T]) AuthorizeJWT() gin.HandlerFunc {
 			}
 			return []byte(m.prop.Middleware.Jwt.SecretKey), nil
 		})
-
+		
 		if token != nil && token.Valid {
 			userId := token.Claims.(jwt.MapClaims)["user"].(string)
 			user, err := m.port.FindById(userId)
@@ -93,10 +101,10 @@ func (m *Middleware[T]) GetToken(userId string) (string, error) {
 			//Audience:  []string{"somebody_else"},
 		},
 	}
-
+	
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	ss, err := token.SignedString([]byte(m.prop.Middleware.Jwt.SecretKey))
-
+	
 	if err != nil {
 		fmt.Println(err)
 		return "", err
@@ -110,7 +118,7 @@ func PoliciesGuard[T domain.IUserGeneric](fn gin.HandlerFunc,
 	operation domain.OperationEnum) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user := GetUserToken(c).(T)
-		if IsAuthorized[T](user, fnValidate, entity, operation) {
+		if !IsAuthorized[T](user, fnValidate, entity, operation) {
 			c.Status(http.StatusUnauthorized)
 			return
 		}
@@ -130,11 +138,11 @@ func IsAuthorized[T domain.IUserGeneric](
 	user T,
 	fnValidate func(interface{}, string, domain.OperationEnum) bool,
 	entity string, operation domain.OperationEnum) bool {
-
+	
 	if fnValidate != nil {
 		return fnValidate(user, entity, operation)
 	} else if user.GetId() == "" || (!user.GetIsAdmin() && !user.HasPermission(entity, operation)) {
-		return true
+		return false
 	}
-	return false
+	return true
 }
