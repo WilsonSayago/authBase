@@ -10,19 +10,22 @@ type IUserGeneric interface {
 }
 
 type UserGeneric struct {
-	id          string
+	Base
 	email       string
 	password    string
 	permissions []Permission
 	isAdmin     bool
+	roles       []Role
 }
 
-func NewUserGeneric(id string, email string, password string, permissions []Permission, isAdmin bool) UserGeneric {
-	return UserGeneric{id: id, email: email, password: password, permissions: permissions, isAdmin: isAdmin}
+func NewUserGeneric(id string, email string, password string, roles []Role, isAdmin bool) UserGeneric {
+	return UserGeneric{Base: Base{
+		Id: id,
+	}, email: email, password: password, roles: roles, isAdmin: isAdmin}
 }
 
 func (u UserGeneric) GetId() string {
-	return u.id
+	return u.Id
 }
 
 func (u UserGeneric) GetEmail() string {
@@ -34,9 +37,52 @@ func (u UserGeneric) GetPassword() string {
 }
 
 func (u UserGeneric) GetPermissions() []Permission {
-	return u.permissions
+	permissionMap := make(map[string]Permission)
+	for _, role := range u.roles {
+		for _, perm := range role.Permissions {
+			if existingPerm, exists := permissionMap[perm.Entity]; exists {
+				permissionMap[perm.Entity] = Permission{
+					Entity: perm.Entity,
+					Create: existingPerm.Create || perm.Create,
+					Read:   existingPerm.Read || perm.Read,
+					Update: existingPerm.Update || perm.Update,
+					Delete: existingPerm.Delete || perm.Delete,
+				}
+			} else {
+				permissionMap[perm.Entity] = perm
+			}
+		}
+	}
+	uniquePermissions := make([]Permission, 0, len(permissionMap))
+	for _, perm := range permissionMap {
+		uniquePermissions = append(uniquePermissions, perm)
+	}
+	return uniquePermissions
 }
 
 func (u UserGeneric) GetIsAdmin() bool {
 	return u.isAdmin
+}
+
+func (u UserGeneric) HasPermission(entity string, operation OperationEnum) bool {
+	for _, permission := range u.GetPermissions() {
+		if permission.Entity == entity {
+			switch operation {
+			case CREATE:
+				return permission.Create
+			case READ:
+				return permission.Read
+			case UPDATE:
+				return permission.Update
+			case DELETE:
+				return permission.Delete
+			}
+		}
+	}
+	return false
+}
+
+// CheckPassword checks if the password is correct
+func (u UserGeneric) CheckPassword(password string) bool {
+	return u.password == password
 }

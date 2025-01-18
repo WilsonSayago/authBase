@@ -16,21 +16,3 @@ type Permission struct {
 	Update bool
 	Delete bool
 }
-
-func (u UserGeneric) HasPermission(entity string, operation OperationEnum) bool {
-	for _, permission := range u.GetPermissions() {
-		if permission.Entity == entity {
-			switch operation {
-			case CREATE:
-				return permission.Create
-			case READ:
-				return permission.Read
-			case UPDATE:
-				return permission.Update
-			case DELETE:
-				return permission.Delete
-			}
-		}
-	}
-	return false
-}

@@ -1,4 +1,4 @@
-module github.com/WilsonSayago/middleware
+module github.com/WilsonSayago/authBase
 
 go 1.21.4
 
