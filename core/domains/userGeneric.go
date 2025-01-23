@@ -11,6 +11,7 @@ type IUserGeneric interface {
 
 type UserGeneric struct {
 	Base
+	name        string
 	email       string
 	password    string
 	permissions []Permission
@@ -18,10 +19,19 @@ type UserGeneric struct {
 	roles       []Role
 }
 
-func NewUserGeneric(id string, email string, password string, roles []Role, isAdmin bool) UserGeneric {
+func NewUserGeneric(id, name, email, password string, roles []Role, isAdmin bool) UserGeneric {
 	return UserGeneric{Base: Base{
 		Id: id,
-	}, email: email, password: password, roles: roles, isAdmin: isAdmin}
+	}, name: name,
+		email:    email,
+		password: password,
+		roles:    roles,
+		isAdmin:  isAdmin,
+	}
+}
+
+func (u UserGeneric) GetName() string {
+	return u.name
 }
 
 func (u UserGeneric) GetId() string {
