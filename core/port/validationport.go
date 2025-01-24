@@ -1,4 +1,4 @@
-package ports
+package port
 
 type ValidationPort interface {
 	HashPassword(password string) (string, error)

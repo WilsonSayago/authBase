@@ -3,8 +3,8 @@ package services
 import (
 	"fmt"
 	"github.com/WilsonSayago/authBase/core"
-	domain "github.com/WilsonSayago/authBase/core/domains"
-	"github.com/WilsonSayago/authBase/core/ports"
+	domain "github.com/WilsonSayago/authBase/core/domain"
+	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
 	"github.com/WilsonSayago/initModules"
 	"github.com/golang-jwt/jwt/v5"
@@ -12,12 +12,12 @@ import (
 )
 
 type AuthenticationService[T domain.IUserGeneric] struct {
-	port         ports.GenericPort[T]
-	validatePort ports.ValidationPort
+	port         port.GenericPort[T]
+	validatePort port.ValidationPort
 	prop         *properties.JwtProp
 }
 
-func GetAuthenticationInstance[T domain.IUserGeneric](port ports.GenericPort[T], validatePort ports.ValidationPort, prop *properties.JwtProp) core.AuthenticationUseCase {
+func GetAuthenticationInstance[T domain.IUserGeneric](port port.GenericPort[T], validatePort port.ValidationPort, prop *properties.JwtProp) core.AuthenticationUseCase {
 	instance := initModules.GetInstance("AuthenticationService", func() interface{} {
 		return &AuthenticationService[T]{
 			port:         port,

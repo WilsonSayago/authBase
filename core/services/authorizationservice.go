@@ -3,8 +3,8 @@ package services
 import (
 	"fmt"
 	"github.com/WilsonSayago/authBase/core"
-	domain "github.com/WilsonSayago/authBase/core/domains"
-	"github.com/WilsonSayago/authBase/core/ports"
+	"github.com/WilsonSayago/authBase/core/domain"
+	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
 	"github.com/WilsonSayago/initModules"
 	"github.com/golang-jwt/jwt/v5"
@@ -12,11 +12,11 @@ import (
 )
 
 type Authorization[T domain.IUserGeneric, C core.Context] struct {
-	port ports.GenericPort[T]
+	port port.GenericPort[T]
 	prop *properties.JwtProp
 }
 
-func NewAuthorization[T domain.IUserGeneric, C core.Context](port ports.GenericPort[T], prop *properties.JwtProp) core.AuthorizationUseCase[T, C] {
+func NewAuthorization[T domain.IUserGeneric, C core.Context](port port.GenericPort[T], prop *properties.JwtProp) core.AuthorizationUseCase[T, C] {
 	instance := initModules.GetInstance("Authorization", func() interface{} {
 		return &Authorization[T, C]{
 			port: port,

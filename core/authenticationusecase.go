@@ -1,6 +1,6 @@
 package core
 
-import domain "github.com/WilsonSayago/authBase/core/domains"
+import domain "github.com/WilsonSayago/authBase/core/domain"
 
 type AuthenticationUseCase interface {
 	GetToken(id string) (string, error)

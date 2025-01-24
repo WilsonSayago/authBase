@@ -1,6 +1,6 @@
 package core
 
-import domain "github.com/WilsonSayago/authBase/core/domains"
+import domain "github.com/WilsonSayago/authBase/core/domain"
 
 type Context interface {
 	GetHeader(key string) string
