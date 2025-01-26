@@ -6,4 +6,5 @@ type RoleUseCase interface {
 	GetRoleById(id string) (domain.Role, error)
 	GetRoles() ([]domain.Role, error)
 	CreateRole(role domain.Role) (domain.Role, error)
+	UpdateRole(role domain.Role) (domain.Role, error)
 }
