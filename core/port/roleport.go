@@ -6,4 +6,5 @@ type RolePort interface {
 	FindById(id string) (domain.Role, error)
 	FindAll() ([]domain.Role, error)
 	Save(role domain.Role) (domain.Role, error)
+	ChangeStatus(id string) error
 }

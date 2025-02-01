@@ -19,9 +19,10 @@ type UserGeneric struct {
 	roles       []Role
 }
 
-func NewUserGeneric(id, name, email, password string, roles []Role, isAdmin bool) UserGeneric {
+func NewUserGeneric(id, name, email, password string, roles []Role, isAdmin, active bool) UserGeneric {
 	return UserGeneric{Base: Base{
-		Id: id,
+		Id:     id,
+		Active: active,
 	}, name: name,
 		email:    email,
 		password: password,

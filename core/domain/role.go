@@ -14,7 +14,6 @@ type Role struct {
 	Permissions []Permission
 }
 
-// generate getters for Role struct
 func (r *Role) GetName() string {
 	return r.Name
 }
@@ -29,4 +28,8 @@ func (r *Role) GetPermissions() []Permission {
 
 func (r *Role) GetId() string {
 	return r.Id
+}
+
+func (r *Role) GetActive() bool {
+	return r.Active
 }
