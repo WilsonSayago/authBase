@@ -33,55 +33,87 @@ type MyCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func (a AuthenticationService[T]) GetToken(id string) (string, error) {
+func (a AuthenticationService[T]) GetToken(id string) (string, string, error) {
 	claims := MyCustomClaims{
 		id,
 		jwt.RegisteredClaims{
+			ID: id,
 			// A usual scenario is to set the expiration time relative to the current time
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			//IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(a.prop.Jwt.ExpirationTime) * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			//NotBefore: jwt.NewNumericDate(time.Now()),
 			//Issuer:    "test",
 			//Subject:   "somebody",
-			//ID:        "1",
+
 			//Audience:  []string{"somebody_else"},
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	ss, err := token.SignedString([]byte(a.prop.Jwt.SecretKey))
+	tokenString, err := token.SignedString([]byte(a.prop.Jwt.SecretKey))
 
 	if err != nil {
 		fmt.Println(err)
-		return "", err
+		return "", "", err
 	}
-	return ss, nil
+
+	refreshClaims := MyCustomClaims{
+		id,
+		jwt.RegisteredClaims{
+			ID:        id,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(a.prop.Jwt.RefreshTokenTime) * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshTokenString, err := refreshToken.SignedString([]byte(a.prop.Jwt.RefreshSecret))
+	if err != nil {
+		return "", "", err
+	}
+
+	return tokenString, refreshTokenString, nil
 }
 
-func (a AuthenticationService[T]) Login(username, password string) (string, error) {
+func (a AuthenticationService[T]) Login(username, password string) (string, string, error) {
 	// Find the user by username
 	user, err := a.port.FindByEmail(username)
 	if err != nil {
-		return "", fmt.Errorf("user not found: %v", err)
+		return "", "", fmt.Errorf("user not found: %v", err)
 	}
 
 	// Validate the password
 	if !a.validatePort.CheckPassword(user.GetPassword(), password) {
-		return "", fmt.Errorf("invalid password")
+		return "", "", fmt.Errorf("invalid password")
 	}
 
-	token, err := a.GetToken(user.GetId())
+	token, refreshToken, err := a.GetToken(user.GetId())
 	if err != nil {
-		return "", fmt.Errorf("failed to generate token: %v", err)
+		return "", "", fmt.Errorf("failed to generate token: %v", err)
 	}
 
-	return token, nil
+	return token, refreshToken, nil
 
 }
 
-func (a AuthenticationService[T]) RefreshToken() (string, error) {
-	//TODO implement me
-	panic("implement me")
+func (a AuthenticationService[T]) RefreshToken(refreshToken string) (string, string, error) {
+	claims := &jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(refreshToken, claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte(a.prop.Jwt.RefreshSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return "", "", fmt.Errorf("invalid token")
+	}
+
+	userId := (*claims)["user"].(string)
+
+	tokenString, refreshToken, err := a.GetToken(userId)
+
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate token: %v", err)
+	}
+
+	return tokenString, refreshToken, nil
 }
 
 func (a AuthenticationService[T]) ValidateToken(tokenString string) (domain.IUserGeneric, error) {
