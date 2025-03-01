@@ -1,6 +1,6 @@
 module github.com/WilsonSayago/authBase
 
-go 1.21.4
+go 1.24.0
 
 require (
 	github.com/WilsonSayago/initModules v1.0.6

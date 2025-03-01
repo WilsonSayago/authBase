@@ -1,5 +1,7 @@
 package domain
 
+// RoutePathEnum represents the enumeration of route paths.
+// @Description RoutePathEnum
 type RoutePathEnum string
 
 const (
