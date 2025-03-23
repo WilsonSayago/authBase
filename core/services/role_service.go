@@ -32,8 +32,8 @@ func (r *RoleService) CreateRole(role domain.Role) (domain.Role, error) {
 	return r.port.Save(role)
 }
 
-func (r *RoleService) UpdateRole(role domain.Role) (domain.Role, error) {
-	return r.port.Save(role)
+func (r *RoleService) UpdateRole(role domain.Role) error {
+	return r.port.Update(role)
 }
 
 func (r *RoleService) ChangeStatus(id string) error {

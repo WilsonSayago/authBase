@@ -97,3 +97,7 @@ func (u UserGeneric) HasPermission(entity string, operation OperationEnum) bool 
 func (u UserGeneric) CheckPassword(password string) bool {
 	return u.password == password
 }
+
+func (u UserGeneric) GetRole() []Role {
+	return u.roles
+}
