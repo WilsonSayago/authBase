@@ -2,6 +2,8 @@ package domain
 
 import "time"
 
+// test n8n
+
 type Base struct {
 	Id        string    `bson:"id,omitempty"`
 	UpdatedAt time.Time `bson:"updatedAt,omitempty"`
