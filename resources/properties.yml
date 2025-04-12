@@ -3,3 +3,5 @@ jwt:
   refresh-secret: tuRefreshSecret
   expiration-time: 1
   refresh-token-time: 2
+  refresh-token-time2: 2
+  refresh-token-time3: 2
