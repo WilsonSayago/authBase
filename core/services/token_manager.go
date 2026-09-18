@@ -27,15 +27,17 @@ type TokenClaims struct {
 	jwt.RegisteredClaims
 }
 
-// IssuedTokens is a signed access/refresh pair plus the refresh session metadata
-// that must be persisted before returning tokens to a client.
-type IssuedTokens struct {
+// issuedTokens is a signed access/refresh pair plus the refresh session metadata
+// that AuthenticationService must persist before returning tokens to a client.
+type issuedTokens struct {
 	AccessToken  string
 	RefreshToken string
 	Session      domain.RefreshSession
 }
 
-// TokenManager issues and verifies access/refresh tokens with a single policy.
+// TokenManager verifies access/refresh tokens and privately issues pairs for
+// AuthenticationService. Callers outside this package must not mint refresh
+// tokens; only AuthenticationService persists sessions before returning them.
 type TokenManager struct {
 	cfg   properties.Jwt
 	now   func() time.Time
@@ -68,31 +70,23 @@ func newTokenManagerForTest(cfg properties.Jwt, now func() time.Time, newID func
 	return tm, nil
 }
 
-// IssueInitialPair creates access/refresh tokens with a new refresh family.
-func (m *TokenManager) IssueInitialPair(subject string) (IssuedTokens, error) {
+// issueInitialPair creates access/refresh tokens with a new refresh family.
+// Only AuthenticationService should call this, and must Create the session first.
+func (m *TokenManager) issueInitialPair(subject string) (issuedTokens, error) {
 	familyID, err := m.newID()
 	if err != nil {
-		return IssuedTokens{}, fmt.Errorf("generate family id: %w", err)
+		return issuedTokens{}, fmt.Errorf("generate family id: %w", err)
 	}
 	return m.issuePair(subject, familyID)
 }
 
-// IssueRotatedPair creates access/refresh tokens that continue an existing family.
-func (m *TokenManager) IssueRotatedPair(subject, familyID string) (IssuedTokens, error) {
+// issueRotatedPair creates access/refresh tokens that continue an existing family.
+// Only AuthenticationService should call this, and must Rotate before returning.
+func (m *TokenManager) issueRotatedPair(subject, familyID string) (issuedTokens, error) {
 	if familyID == "" {
-		return IssuedTokens{}, fmt.Errorf("refresh family id must not be empty")
+		return issuedTokens{}, fmt.Errorf("refresh family id must not be empty")
 	}
 	return m.issuePair(subject, familyID)
-}
-
-// IssuePair creates a signed access and refresh token for subject.
-// Prefer IssueInitialPair/IssueRotatedPair when persisting refresh sessions.
-func (m *TokenManager) IssuePair(subject string) (accessToken, refreshToken string, err error) {
-	issued, err := m.IssueInitialPair(subject)
-	if err != nil {
-		return "", "", err
-	}
-	return issued.AccessToken, issued.RefreshToken, nil
 }
 
 // ParseAccess verifies an access token and returns typed claims.
@@ -105,19 +99,19 @@ func (m *TokenManager) ParseRefresh(tokenString string) (*TokenClaims, error) {
 	return m.parse(tokenString, TokenTypeRefresh, m.cfg.RefreshSecret)
 }
 
-func (m *TokenManager) issuePair(subject, familyID string) (IssuedTokens, error) {
+func (m *TokenManager) issuePair(subject, familyID string) (issuedTokens, error) {
 	if subject == "" {
-		return IssuedTokens{}, fmt.Errorf("token subject must not be empty")
+		return issuedTokens{}, fmt.Errorf("token subject must not be empty")
 	}
 	accessToken, _, err := m.issue(subject, TokenTypeAccess, "", m.cfg.SecretKey, m.cfg.ExpirationTime)
 	if err != nil {
-		return IssuedTokens{}, err
+		return issuedTokens{}, err
 	}
 	refreshToken, session, err := m.issue(subject, TokenTypeRefresh, familyID, m.cfg.RefreshSecret, m.cfg.RefreshTokenTime)
 	if err != nil {
-		return IssuedTokens{}, err
+		return issuedTokens{}, err
 	}
-	return IssuedTokens{
+	return issuedTokens{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Session:      session,

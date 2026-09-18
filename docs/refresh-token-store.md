@@ -51,8 +51,17 @@ Expired and consumed sessions may be purged by the adapter on its own schedule.
 Retention windows are an operational choice; authBase does not require indefinite
 history beyond what is needed to detect recent replay.
 
+## Issuance boundary
+
+Only `AuthenticationService` mints refresh token pairs for callers. It always
+`Create`s or `Rotate`s the session in `RefreshTokenStore` before returning
+tokens. `TokenManager` pair issuance is unexported so adapters cannot return
+refresh JWTs that were never registered.
+
 ## Non-goals
 
 - Do not store plaintext JWTs, access tokens, or password hashes in this store.
 - Do not implement rotation with best-effort dual writes; if the datastore cannot
   provide atomic consume+insert, do not adapt it for production refresh.
+- Do not expose TokenManager helpers that return refresh tokens without a store
+  write; that breaks replay detection.

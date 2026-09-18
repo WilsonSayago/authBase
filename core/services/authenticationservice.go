@@ -83,7 +83,7 @@ func (a AuthenticationService[T]) Login(ctx context.Context, username, password 
 		return "", "", core.ErrInvalidCredentials
 	}
 
-	issued, err := a.tokens.IssueInitialPair(cred.UserID)
+	issued, err := a.tokens.issueInitialPair(cred.UserID)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate token: %w", err)
 	}
@@ -108,7 +108,7 @@ func (a AuthenticationService[T]) RefreshToken(ctx context.Context, refreshToken
 	}
 
 	currentHash := domain.HashRefreshToken(refreshToken)
-	issued, err := a.tokens.IssueRotatedPair(user.GetId(), claims.FamilyID)
+	issued, err := a.tokens.issueRotatedPair(user.GetId(), claims.FamilyID)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate token: %w", err)
 	}

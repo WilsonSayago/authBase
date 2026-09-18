@@ -113,10 +113,7 @@ func TestAuthorizeJWTSuccess(t *testing.T) {
 	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "hash")
 	authz := newTestAuthorization(t, store)
 
-	access, _, err := authz.tokens.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, _ := mustIssuePair(t, authz.tokens, "user-1")
 
 	httpCtx := newRecordingHTTPContext("Bearer "+access, context.Background())
 	authz.AuthorizeJWT()(httpCtx)
@@ -140,10 +137,7 @@ func TestAuthorizeJWTRejectsInactiveUser(t *testing.T) {
 	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "hash")
 	authz := newTestAuthorization(t, store)
 
-	access, _, err := authz.tokens.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, _ := mustIssuePair(t, authz.tokens, "user-1")
 	store.setActive("user-1", false)
 
 	httpCtx := newRecordingHTTPContext("Bearer "+access, context.Background())
@@ -158,10 +152,7 @@ func TestAuthorizeJWTPropagatesRequestContext(t *testing.T) {
 	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "hash")
 	authz := newTestAuthorization(t, store)
 
-	access, _, err := authz.tokens.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, _ := mustIssuePair(t, authz.tokens, "user-1")
 
 	reqCtx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -213,10 +204,7 @@ func TestAuthorizeJWTRejectsInvalidTokens(t *testing.T) {
 	store := newFakeIdentityStore()
 	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "hash")
 	authz := newTestAuthorization(t, store)
-	access, refresh, err := authz.tokens.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, refresh := mustIssuePair(t, authz.tokens, "user-1")
 
 	t.Run("malformed", func(t *testing.T) {
 		t.Parallel()
@@ -243,10 +231,7 @@ func TestAuthorizeJWTRejectsInvalidTokens(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewTokenManager(foreign) error = %v", err)
 		}
-		foreignAccess, _, err := foreign.IssuePair("user-1")
-		if err != nil {
-			t.Fatalf("IssuePair(foreign) error = %v", err)
-		}
+		foreignAccess, _ := mustIssuePair(t, foreign, "user-1")
 		local := newTestAuthorization(t, store)
 		httpCtx := newRecordingHTTPContext("Bearer "+foreignAccess, context.Background())
 		local.AuthorizeJWT()(httpCtx)
@@ -260,10 +245,7 @@ func TestAuthorizeJWTRejectsInvalidTokens(t *testing.T) {
 		if err != nil {
 			t.Fatalf("newTokenManagerForTest() error = %v", err)
 		}
-		expiredAccess, _, err := expiredTM.IssuePair("user-1")
-		if err != nil {
-			t.Fatalf("IssuePair(expired) error = %v", err)
-		}
+		expiredAccess, _ := mustIssuePair(t, expiredTM, "user-1")
 		expiredTM.now = func() time.Time { return fixed.Add(2 * time.Hour) }
 
 		localStore := newFakeIdentityStore()
@@ -300,10 +282,7 @@ func TestAuthorizeJWTAcceptsCaseInsensitiveBearer(t *testing.T) {
 	store := newFakeIdentityStore()
 	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "hash")
 	authz := newTestAuthorization(t, store)
-	access, _, err := authz.tokens.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, _ := mustIssuePair(t, authz.tokens, "user-1")
 
 	httpCtx := newRecordingHTTPContext("bearer "+access, context.Background())
 	authz.AuthorizeJWT()(httpCtx)
@@ -462,10 +441,7 @@ func FuzzAuthorizeHeader(f *testing.F) {
 		f.Fatal(err)
 	}
 
-	access, _, err := authz.tokens.IssuePair("user-1")
-	if err != nil {
-		f.Fatal(err)
-	}
+	access, _ := mustIssuePair(f, authz.tokens, "user-1")
 	f.Add("")
 	f.Add("Bearer")
 	f.Add("Bearer ")

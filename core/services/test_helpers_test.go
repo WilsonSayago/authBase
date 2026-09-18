@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/WilsonSayago/authBase/core"
@@ -153,6 +154,17 @@ var (
 	_ port.UserReader[fakeUser] = (*fakeIdentityStore)(nil)
 	_ port.RefreshTokenStore    = (*fakeRefreshStore)(nil)
 )
+
+// mustIssuePair mints an unpersisted access/refresh pair for unit tests only.
+// Production issuance must go through AuthenticationService so sessions are stored.
+func mustIssuePair(t testing.TB, tm *TokenManager, subject string) (access, refresh string) {
+	t.Helper()
+	issued, err := tm.issueInitialPair(subject)
+	if err != nil {
+		t.Fatalf("issueInitialPair(%q) error = %v", subject, err)
+	}
+	return issued.AccessToken, issued.RefreshToken
+}
 
 type fakeRefreshStore struct {
 	mu              sync.Mutex

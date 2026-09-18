@@ -36,12 +36,9 @@ func TestTokenManagerIssueAndParseRoundTrip(t *testing.T) {
 		t.Fatalf("NewTokenManager() error = %v", err)
 	}
 
-	access, refresh, err := tm.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, refresh := mustIssuePair(t, tm, "user-1")
 	if access == "" || refresh == "" {
-		t.Fatal("IssuePair() returned empty tokens")
+		t.Fatal("mustIssuePair() returned empty tokens")
 	}
 
 	accessClaims, err := tm.ParseAccess(access)
@@ -74,10 +71,7 @@ func TestTokenManagerRejectsCrossType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTokenManager() error = %v", err)
 	}
-	access, refresh, err := tm.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, refresh := mustIssuePair(t, tm, "user-1")
 	if _, err := tm.ParseAccess(refresh); err == nil {
 		t.Fatal("ParseAccess(refresh) error = nil, want error")
 	}
@@ -93,10 +87,7 @@ func TestTokenManagerRejectsWrongSecret(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTokenManager() error = %v", err)
 	}
-	access, _, err := tm.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, _ := mustIssuePair(t, tm, "user-1")
 
 	otherCfg := validTokenCfg()
 	otherCfg.SecretKey = strings.Repeat("C", properties.MinSecretBytes)
@@ -210,10 +201,7 @@ func TestTokenManagerRejectsExpired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTokenManager() error = %v", err)
 	}
-	access, _, err := tm.IssuePair("user-1")
-	if err != nil {
-		t.Fatalf("IssuePair() error = %v", err)
-	}
+	access, _ := mustIssuePair(t, tm, "user-1")
 
 	tm.now = func() time.Time { return fixed.Add(2 * time.Hour) }
 	if _, err := tm.ParseAccess(access); err == nil {
@@ -276,8 +264,8 @@ func TestTokenManagerRejectsEmptySubjectOnIssue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTokenManager() error = %v", err)
 	}
-	if _, _, err := tm.IssuePair(""); err == nil {
-		t.Fatal("IssuePair(\"\") error = nil, want error")
+	if _, err := tm.issueInitialPair(""); err == nil {
+		t.Fatal(`issueInitialPair("") error = nil, want error`)
 	}
 }
 
@@ -288,13 +276,13 @@ func TestTokenFamilyRotatedPairsShareFamily(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTokenManager() error = %v", err)
 	}
-	first, err := tm.IssueInitialPair("user-1")
+	first, err := tm.issueInitialPair("user-1")
 	if err != nil {
-		t.Fatalf("IssueInitialPair() error = %v", err)
+		t.Fatalf("issueInitialPair() error = %v", err)
 	}
-	second, err := tm.IssueRotatedPair("user-1", first.Session.FamilyID)
+	second, err := tm.issueRotatedPair("user-1", first.Session.FamilyID)
 	if err != nil {
-		t.Fatalf("IssueRotatedPair() error = %v", err)
+		t.Fatalf("issueRotatedPair() error = %v", err)
 	}
 	if first.Session.FamilyID == "" || first.Session.FamilyID != second.Session.FamilyID {
 		t.Fatalf("family ids = %q / %q", first.Session.FamilyID, second.Session.FamilyID)
@@ -331,10 +319,7 @@ func FuzzParseTokenNeverPanics(f *testing.F) {
 	if err != nil {
 		f.Fatal(err)
 	}
-	access, refresh, err := tm.IssuePair("fuzz-user")
-	if err != nil {
-		f.Fatal(err)
-	}
+	access, refresh := mustIssuePair(f, tm, "fuzz-user")
 	f.Add(access)
 	f.Add(refresh)
 	f.Add("")
