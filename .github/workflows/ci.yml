@@ -32,6 +32,9 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Build examples
+        run: go build -o "${RUNNER_TEMP}/authbase-quickstart" ./examples/quickstart
+
       - name: Test (race)
         if: matrix.go == '1.27.1'
         run: go test -race ./...

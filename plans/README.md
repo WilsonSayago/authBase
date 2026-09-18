@@ -40,7 +40,7 @@ fila al terminar.
 | 005 | Hacer el middleware de autorización panic-safe | P1 | M | 003, 004 | DONE |
 | 006 | Implementar rotación y detección de replay de refresh tokens | P2 | L | 003, 004 | DONE |
 | 007 | Actualizar Go, dependencias y análisis de vulnerabilidades | P1 | S | 002–006 | DONE |
-| 008 | Preparar la API y publicación válida de authBase v3 | P2 | L | 001–007 | TODO |
+| 008 | Preparar la API y publicación válida de authBase v3 | P2 | L | 001–007 | BLOCKED: remote middleware.git; licencia y security contact pendientes |
 
 Valores permitidos: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED: <motivo>` o
 `REJECTED: <motivo>`.
