@@ -17,4 +17,17 @@ var (
 
 	// ErrUnavailable is the sentinel for infrastructure failures in identity stores.
 	ErrUnavailable = errors.New("identity store unavailable")
+
+	// ErrRefreshNotFound is returned when no session matches the refresh hash.
+	ErrRefreshNotFound = errors.New("refresh session not found")
+
+	// ErrRefreshConsumed is returned when a refresh token was already rotated.
+	ErrRefreshConsumed = errors.New("refresh session consumed")
+
+	// ErrRefreshFamilyRevoked is returned when the refresh family was revoked.
+	ErrRefreshFamilyRevoked = errors.New("refresh family revoked")
+
+	// ErrInvalidRefresh is the public refresh failure. Callers must not
+	// distinguish not-found, consumed, revoked, or parse failures.
+	ErrInvalidRefresh = errors.New("invalid refresh token")
 )

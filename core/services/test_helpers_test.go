@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/WilsonSayago/authBase/core"
 	domain "github.com/WilsonSayago/authBase/core/domain"
@@ -149,4 +151,102 @@ func (v *fakeValidationPort) CheckPassword(hashedPassword, password string) bool
 var (
 	_ port.CredentialReader     = (*fakeIdentityStore)(nil)
 	_ port.UserReader[fakeUser] = (*fakeIdentityStore)(nil)
+	_ port.RefreshTokenStore    = (*fakeRefreshStore)(nil)
 )
+
+type fakeRefreshStore struct {
+	mu              sync.Mutex
+	byHash          map[[32]byte]domain.RefreshSession
+	consumed        map[[32]byte]struct{}
+	revokedFamilies map[string]struct{}
+	createN         int
+	rotateN         int
+	revokeN         int
+	errCreate       error
+	errRotate       error
+	errRevoke       error
+	now             func() time.Time
+}
+
+func newFakeRefreshStore() *fakeRefreshStore {
+	return &fakeRefreshStore{
+		byHash:          make(map[[32]byte]domain.RefreshSession),
+		consumed:        make(map[[32]byte]struct{}),
+		revokedFamilies: make(map[string]struct{}),
+		now:             time.Now,
+	}
+}
+
+func (s *fakeRefreshStore) Create(ctx context.Context, session domain.RefreshSession) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.createN++
+	if s.errCreate != nil {
+		return s.errCreate
+	}
+	if !session.Valid() {
+		return fmt.Errorf("invalid refresh session")
+	}
+	if _, exists := s.byHash[session.TokenHash]; exists {
+		return fmt.Errorf("refresh session already exists")
+	}
+	if _, revoked := s.revokedFamilies[session.FamilyID]; revoked {
+		return core.ErrRefreshFamilyRevoked
+	}
+	s.byHash[session.TokenHash] = session
+	return nil
+}
+
+func (s *fakeRefreshStore) Rotate(ctx context.Context, currentHash [32]byte, next domain.RefreshSession) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rotateN++
+	if s.errRotate != nil {
+		return s.errRotate
+	}
+	if !next.Valid() {
+		return fmt.Errorf("invalid refresh session")
+	}
+	current, ok := s.byHash[currentHash]
+	if !ok {
+		return core.ErrRefreshNotFound
+	}
+	if _, revoked := s.revokedFamilies[current.FamilyID]; revoked {
+		return core.ErrRefreshFamilyRevoked
+	}
+	if _, consumed := s.consumed[currentHash]; consumed {
+		return core.ErrRefreshConsumed
+	}
+	if s.now().After(current.ExpiresAt) {
+		return core.ErrRefreshNotFound
+	}
+	if next.FamilyID != current.FamilyID {
+		return fmt.Errorf("refresh family mismatch")
+	}
+	if _, exists := s.byHash[next.TokenHash]; exists {
+		return fmt.Errorf("next refresh session already exists")
+	}
+	s.consumed[currentHash] = struct{}{}
+	s.byHash[next.TokenHash] = next
+	return nil
+}
+
+func (s *fakeRefreshStore) RevokeFamily(ctx context.Context, familyID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.revokeN++
+	if s.errRevoke != nil {
+		return s.errRevoke
+	}
+	s.revokedFamilies[familyID] = struct{}{}
+	return nil
+}
