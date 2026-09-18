@@ -6,7 +6,7 @@ import (
 	"github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
-	"github.com/WilsonSayago/initModules"
+	"github.com/WilsonSayago/initModules/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 )

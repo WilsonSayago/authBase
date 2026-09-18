@@ -4,7 +4,7 @@ import (
 	"github.com/WilsonSayago/authBase/core"
 	"github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/core/port"
-	"github.com/WilsonSayago/initModules"
+	"github.com/WilsonSayago/initModules/v2"
 )
 
 type RoleService struct {

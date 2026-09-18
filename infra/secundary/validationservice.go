@@ -2,7 +2,7 @@ package secundary
 
 import (
 	"github.com/WilsonSayago/authBase/core/port"
-	"github.com/WilsonSayago/initModules"
+	"github.com/WilsonSayago/initModules/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
