@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	domain "github.com/WilsonSayago/authBase/core/domain"
+	domain "github.com/WilsonSayago/authBase/v3/core/domain"
 )
 
 // Context is a framework-neutral HTTP request adapter used by authorization middleware.

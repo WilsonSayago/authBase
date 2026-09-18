@@ -1,6 +1,6 @@
 package core
 
-import "github.com/WilsonSayago/authBase/core/domain"
+import "github.com/WilsonSayago/authBase/v3/core/domain"
 
 type RoleUseCase interface {
 	GetRoleById(id string) (domain.Role, error)

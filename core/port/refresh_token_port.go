@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	"github.com/WilsonSayago/authBase/core/domain"
+	"github.com/WilsonSayago/authBase/v3/core/domain"
 )
 
 // RefreshTokenStore persists refresh sessions by token hash and rotates them

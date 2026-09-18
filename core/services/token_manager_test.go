@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WilsonSayago/authBase/infra/config/properties"
+	"github.com/WilsonSayago/authBase/v3/infra/config/properties"
 	"github.com/golang-jwt/jwt/v5"
 )
 

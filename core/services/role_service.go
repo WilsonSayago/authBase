@@ -1,9 +1,9 @@
 package services
 
 import (
-	"github.com/WilsonSayago/authBase/core"
-	"github.com/WilsonSayago/authBase/core/domain"
-	"github.com/WilsonSayago/authBase/core/port"
+	"github.com/WilsonSayago/authBase/v3/core"
+	"github.com/WilsonSayago/authBase/v3/core/domain"
+	"github.com/WilsonSayago/authBase/v3/core/port"
 )
 
 type RoleService struct {

@@ -1,4 +1,4 @@
-module github.com/WilsonSayago/authBase
+module github.com/WilsonSayago/authBase/v3
 
 go 1.26.0
 

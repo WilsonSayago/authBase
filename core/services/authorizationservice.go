@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/WilsonSayago/authBase/core"
-	"github.com/WilsonSayago/authBase/core/domain"
-	"github.com/WilsonSayago/authBase/core/port"
+	"github.com/WilsonSayago/authBase/v3/core"
+	"github.com/WilsonSayago/authBase/v3/core/domain"
+	"github.com/WilsonSayago/authBase/v3/core/port"
 )
 
 // contextUserKey is the private storage key for the authenticated user.

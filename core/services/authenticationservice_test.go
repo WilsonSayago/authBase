@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/WilsonSayago/authBase/core"
-	"github.com/WilsonSayago/authBase/core/domain"
-	"github.com/WilsonSayago/authBase/infra/config/properties"
+	"github.com/WilsonSayago/authBase/v3/core"
+	"github.com/WilsonSayago/authBase/v3/core/domain"
+	"github.com/WilsonSayago/authBase/v3/infra/config/properties"
 )
 
 func testJwtConfig() properties.Jwt {

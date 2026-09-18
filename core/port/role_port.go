@@ -1,6 +1,6 @@
 package port
 
-import "github.com/WilsonSayago/authBase/core/domain"
+import "github.com/WilsonSayago/authBase/v3/core/domain"
 
 type RolePort interface {
 	FindById(id string) (domain.Role, error)

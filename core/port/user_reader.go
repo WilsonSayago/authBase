@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	domain "github.com/WilsonSayago/authBase/core/domain"
+	domain "github.com/WilsonSayago/authBase/v3/core/domain"
 )
 
 // UserReader loads complete user profiles for authorization and token validation.
