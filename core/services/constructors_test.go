@@ -188,39 +188,43 @@ func TestNewAuthorizationReturnsIndependentPointers(t *testing.T) {
 	cfgA := constructorJwt("authza")
 	cfgB := constructorJwt("authzb")
 
-	first, err := NewAuthorization[fakeUser, stubContext](storeA, cfgA)
+	tokensA, err := NewTokenManager(cfgA)
+	if err != nil {
+		t.Fatalf("NewTokenManager(A) error = %v", err)
+	}
+	tokensB, err := NewTokenManager(cfgB)
+	if err != nil {
+		t.Fatalf("NewTokenManager(B) error = %v", err)
+	}
+
+	first, err := NewAuthorization[fakeUser, stubContext](storeA, tokensA)
 	if err != nil {
 		t.Fatalf("NewAuthorization(A) error = %v", err)
 	}
-	second, err := NewAuthorization[fakeUser, stubContext](storeB, cfgB)
+	second, err := NewAuthorization[fakeUser, stubContext](storeB, tokensB)
 	if err != nil {
 		t.Fatalf("NewAuthorization(B) error = %v", err)
 	}
 	if first == second {
 		t.Fatal("NewAuthorization returned the same pointer twice")
 	}
-	if first.users != storeA || first.tokens == nil {
+	if first.users != storeA || first.tokens != tokensA {
 		t.Fatal("first authorization instance did not keep its own dependencies")
 	}
-	if second.users != storeB || second.tokens == nil {
+	if second.users != storeB || second.tokens != tokensB {
 		t.Fatal("second authorization instance did not keep its own dependencies")
-	}
-	if first.tokens == second.tokens {
-		t.Fatal("authorization services unexpectedly share TokenManager")
 	}
 }
 
 func TestNewAuthorizationRejectsInvalidConfig(t *testing.T) {
 	t.Parallel()
 
-	cfg := constructorJwt("bad")
-	cfg.Audience = ""
-	svc, err := NewAuthorization[fakeUser, stubContext](newFakeIdentityStore(), cfg)
+	svc, err := NewAuthorization[fakeUser, stubContext](newFakeIdentityStore(), nil)
 	if err == nil {
-		t.Fatal("NewAuthorization() error = nil, want invalid config error")
+		t.Fatal("NewAuthorization() error = nil, want nil token manager error")
 	}
 	if svc != nil {
-		t.Fatal("NewAuthorization() returned service for invalid config")
+		t.Fatal("NewAuthorization() returned service for nil token manager")
 	}
 }
 

@@ -37,7 +37,7 @@ fila al terminar.
 | 002 | Eliminar singletons globales e initModules | P1 | M | 001 | DONE |
 | 003 | Centralizar y endurecer JWT y configuración | P1 | L | 001, 002 | DONE |
 | 004 | Aplicar estado activo y aislar credenciales | P1 | L | 003 | DONE |
-| 005 | Hacer el middleware de autorización panic-safe | P1 | M | 003, 004 | TODO |
+| 005 | Hacer el middleware de autorización panic-safe | P1 | M | 003, 004 | DONE |
 | 006 | Implementar rotación y detección de replay de refresh tokens | P2 | L | 003, 004 | TODO |
 | 007 | Actualizar Go, dependencias y análisis de vulnerabilidades | P1 | S | 002–006 | TODO |
 | 008 | Preparar la API y publicación válida de authBase v3 | P2 | L | 001–007 | TODO |

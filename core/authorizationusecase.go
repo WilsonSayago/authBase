@@ -20,13 +20,17 @@ type Context interface {
 
 type AuthorizationUseCase[T any, C Context] interface {
 	AuthorizeJWT() func(ctx C)
-	PoliciesGuard(fn func(C),
-		fnValidate func(interface{}, string, domain.OperationEnum) bool,
+	PoliciesGuard(
+		fn func(C),
+		fnValidate func(T, string, domain.OperationEnum) bool,
 		entity string,
-		operation domain.OperationEnum) func(C)
-	GetUserToken(c Context) T
+		operation domain.OperationEnum,
+	) func(C)
+	GetUserToken(c Context) (T, bool)
 	IsAuthorized(
 		user T,
-		fnValidate func(interface{}, string, domain.OperationEnum) bool,
-		entity string, operation domain.OperationEnum) bool
+		fnValidate func(T, string, domain.OperationEnum) bool,
+		entity string,
+		operation domain.OperationEnum,
+	) bool
 }

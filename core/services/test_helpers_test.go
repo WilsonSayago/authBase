@@ -10,10 +10,11 @@ import (
 )
 
 type fakeUser struct {
-	id      string
-	email   string
-	isAdmin bool
-	active  bool
+	id            string
+	email         string
+	isAdmin       bool
+	active        bool
+	hasPermission func(entity string, operation domain.OperationEnum) bool
 }
 
 func (u fakeUser) GetId() string {
@@ -36,7 +37,10 @@ func (u fakeUser) GetIsAdmin() bool {
 	return u.isAdmin
 }
 
-func (u fakeUser) HasPermission(string, domain.OperationEnum) bool {
+func (u fakeUser) HasPermission(entity string, operation domain.OperationEnum) bool {
+	if u.hasPermission != nil {
+		return u.hasPermission(entity, operation)
+	}
 	return false
 }
 
