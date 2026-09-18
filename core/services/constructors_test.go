@@ -72,6 +72,7 @@ func (stubContext) Set(string, interface{})              {}
 func (stubContext) Next()                                {}
 func (stubContext) Status(int)                           {}
 func (stubContext) Get(string) (interface{}, bool)       { return nil, false }
+func (stubContext) RequestContext() context.Context      { return context.Background() }
 
 func constructorJwt(suffix string) properties.Jwt {
 	return properties.Jwt{

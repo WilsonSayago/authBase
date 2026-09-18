@@ -1,7 +1,12 @@
 package core
 
-import domain "github.com/WilsonSayago/authBase/core/domain"
+import (
+	"context"
 
+	domain "github.com/WilsonSayago/authBase/core/domain"
+)
+
+// Context is a framework-neutral HTTP request adapter used by authorization middleware.
 type Context interface {
 	GetHeader(key string) string
 	Set(key string, value interface{})
@@ -9,6 +14,8 @@ type Context interface {
 	Next()
 	Get(key string) (value any, exists bool)
 	Status(code int)
+	// RequestContext returns the request-scoped context for cancellation and deadlines.
+	RequestContext() context.Context
 }
 
 type AuthorizationUseCase[T any, C Context] interface {

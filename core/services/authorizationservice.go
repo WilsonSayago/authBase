@@ -51,7 +51,7 @@ func (a *Authorization[T, C]) AuthorizeJWT() func(ctx C) {
 			return
 		}
 
-		user, err := a.users.FindByID(context.Background(), claims.Subject)
+		user, err := a.users.FindByID(requestContext(ctx), claims.Subject)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) {
 				ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
@@ -67,6 +67,13 @@ func (a *Authorization[T, C]) AuthorizeJWT() func(ctx C) {
 		ctx.Set("user", user)
 		ctx.Next()
 	}
+}
+
+func requestContext(ctx core.Context) context.Context {
+	if reqCtx := ctx.RequestContext(); reqCtx != nil {
+		return reqCtx
+	}
+	return context.Background()
 }
 
 func (a *Authorization[T, C]) PoliciesGuard(fn func(C),

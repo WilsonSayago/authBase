@@ -85,12 +85,12 @@ func (p *fakeIdentityStore) setActive(id string, active bool) {
 }
 
 func (p *fakeIdentityStore) FindCredentialsByUsername(ctx context.Context, username string) (port.CredentialRecord, error) {
-	if err := ctx.Err(); err != nil {
-		return port.CredentialRecord{}, err
-	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.findCredN++
+	if err := ctx.Err(); err != nil {
+		return port.CredentialRecord{}, err
+	}
 	if p.errByUsername != nil {
 		return port.CredentialRecord{}, p.errByUsername
 	}
@@ -102,12 +102,12 @@ func (p *fakeIdentityStore) FindCredentialsByUsername(ctx context.Context, usern
 }
 
 func (p *fakeIdentityStore) FindByID(ctx context.Context, id string) (fakeUser, error) {
-	if err := ctx.Err(); err != nil {
-		return fakeUser{}, err
-	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.findByIDN++
+	if err := ctx.Err(); err != nil {
+		return fakeUser{}, err
+	}
 	if p.errByID != nil {
 		return fakeUser{}, p.errByID
 	}
