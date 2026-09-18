@@ -2,13 +2,13 @@ package services
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/WilsonSayago/authBase/core"
 	"github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
-	"github.com/WilsonSayago/initModules/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"net/http"
 )
 
 type Authorization[T domain.IUserGeneric, C core.Context] struct {
@@ -17,13 +17,10 @@ type Authorization[T domain.IUserGeneric, C core.Context] struct {
 }
 
 func NewAuthorization[T domain.IUserGeneric, C core.Context](port port.GenericPort[T], prop *properties.JwtProp) core.AuthorizationUseCase[T, C] {
-	instance := initModules.GetInstance("Authorization", func() interface{} {
-		return &Authorization[T, C]{
-			port: port,
-			prop: prop,
-		}
-	})
-	return instance.(*Authorization[T, C])
+	return &Authorization[T, C]{
+		port: port,
+		prop: prop,
+	}
 }
 
 func (a *Authorization[T, C]) AuthorizeJWT() func(ctx C) {

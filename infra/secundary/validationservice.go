@@ -2,17 +2,13 @@ package secundary
 
 import (
 	"github.com/WilsonSayago/authBase/core/port"
-	"github.com/WilsonSayago/initModules/v2"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type ValidationService struct{}
 
 func NewValidationService() port.ValidationPort {
-	instance := initModules.GetInstance("ValidationService", func() interface{} {
-		return &ValidationService{}
-	})
-	return instance.(*ValidationService)
+	return &ValidationService{}
 }
 
 func (v *ValidationService) HashPassword(password string) (string, error) {

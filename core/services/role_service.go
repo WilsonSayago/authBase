@@ -4,7 +4,6 @@ import (
 	"github.com/WilsonSayago/authBase/core"
 	"github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/core/port"
-	"github.com/WilsonSayago/initModules/v2"
 )
 
 type RoleService struct {
@@ -12,12 +11,9 @@ type RoleService struct {
 }
 
 func GetRoleServiceInstance(port port.RolePort) core.RoleUseCase {
-	instance := initModules.GetInstance("RoleService", func() interface{} {
-		return &RoleService{
-			port: port,
-		}
-	})
-	return instance.(*RoleService)
+	return &RoleService{
+		port: port,
+	}
 }
 
 func (r *RoleService) GetRoleById(id string) (domain.Role, error) {

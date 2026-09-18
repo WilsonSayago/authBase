@@ -3,12 +3,6 @@ module github.com/WilsonSayago/authBase
 go 1.26.3
 
 require (
-	github.com/WilsonSayago/initModules/v2 v2.0.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	golang.org/x/crypto v0.32.0
-)
-
-require (
-	github.com/magiconair/properties v1.18.11 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

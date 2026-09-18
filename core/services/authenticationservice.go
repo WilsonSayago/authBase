@@ -2,13 +2,13 @@ package services
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/WilsonSayago/authBase/core"
 	domain "github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
-	"github.com/WilsonSayago/initModules/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"time"
 )
 
 type AuthenticationService[T domain.IUserGeneric] struct {
@@ -18,14 +18,11 @@ type AuthenticationService[T domain.IUserGeneric] struct {
 }
 
 func GetAuthenticationInstance[T domain.IUserGeneric](port port.GenericPort[T], validatePort port.ValidationPort, prop *properties.JwtProp) core.AuthenticationUseCase {
-	instance := initModules.GetInstance("AuthenticationService", func() interface{} {
-		return &AuthenticationService[T]{
-			port:         port,
-			validatePort: validatePort,
-			prop:         prop,
-		}
-	})
-	return instance.(*AuthenticationService[T])
+	return &AuthenticationService[T]{
+		port:         port,
+		validatePort: validatePort,
+		prop:         prop,
+	}
 }
 
 type MyCustomClaims struct {
