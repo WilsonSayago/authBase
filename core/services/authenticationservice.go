@@ -14,6 +14,7 @@ import (
 type AuthenticationService[T domain.IUserGeneric] struct {
 	users        port.UserReader[T]
 	credentials  port.CredentialReader
+	refreshStore port.RefreshTokenStore
 	validatePort port.ValidationPort
 	tokens       *TokenManager
 }
@@ -22,6 +23,7 @@ type AuthenticationService[T domain.IUserGeneric] struct {
 func NewAuthenticationService[T domain.IUserGeneric](
 	users port.UserReader[T],
 	credentials port.CredentialReader,
+	refreshStore port.RefreshTokenStore,
 	validatePort port.ValidationPort,
 	cfg properties.Jwt,
 ) (*AuthenticationService[T], error) {
@@ -30,6 +32,9 @@ func NewAuthenticationService[T domain.IUserGeneric](
 	}
 	if credentials == nil {
 		return nil, fmt.Errorf("authentication credential reader is nil")
+	}
+	if refreshStore == nil {
+		return nil, fmt.Errorf("authentication refresh store is nil")
 	}
 	if validatePort == nil {
 		return nil, fmt.Errorf("authentication validation port is nil")
@@ -41,6 +46,7 @@ func NewAuthenticationService[T domain.IUserGeneric](
 	return &AuthenticationService[T]{
 		users:        users,
 		credentials:  credentials,
+		refreshStore: refreshStore,
 		validatePort: validatePort,
 		tokens:       tokens,
 	}, nil
@@ -52,17 +58,14 @@ func NewAuthenticationService[T domain.IUserGeneric](
 func GetAuthenticationInstance[T domain.IUserGeneric](
 	users port.UserReader[T],
 	credentials port.CredentialReader,
+	refreshStore port.RefreshTokenStore,
 	validatePort port.ValidationPort,
 	prop *properties.JwtProp,
 ) (core.AuthenticationUseCase, error) {
 	if prop == nil {
 		return nil, fmt.Errorf("jwt configuration is nil")
 	}
-	return NewAuthenticationService[T](users, credentials, validatePort, prop.Jwt)
-}
-
-func (a AuthenticationService[T]) GetToken(id string) (string, string, error) {
-	return a.tokens.IssuePair(id)
+	return NewAuthenticationService[T](users, credentials, refreshStore, validatePort, prop.Jwt)
 }
 
 func (a AuthenticationService[T]) Login(ctx context.Context, username, password string) (string, string, error) {
@@ -80,29 +83,58 @@ func (a AuthenticationService[T]) Login(ctx context.Context, username, password 
 		return "", "", core.ErrInvalidCredentials
 	}
 
-	token, refreshToken, err := a.GetToken(cred.UserID)
+	issued, err := a.tokens.IssueInitialPair(cred.UserID)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate token: %w", err)
 	}
-	return token, refreshToken, nil
+	if err := a.refreshStore.Create(ctx, issued.Session); err != nil {
+		return "", "", fmt.Errorf("persist refresh session: %w", err)
+	}
+	return issued.AccessToken, issued.RefreshToken, nil
 }
 
 func (a AuthenticationService[T]) RefreshToken(ctx context.Context, refreshToken string) (string, string, error) {
 	claims, err := a.tokens.ParseRefresh(refreshToken)
 	if err != nil {
-		return "", "", fmt.Errorf("invalid token")
+		return "", "", core.ErrInvalidRefresh
 	}
 
 	user, err := a.requireActiveUser(ctx, claims.Subject)
 	if err != nil {
+		if errors.Is(err, core.ErrInactiveIdentity) || errors.Is(err, core.ErrNotFound) {
+			return "", "", core.ErrInvalidRefresh
+		}
 		return "", "", err
 	}
 
-	tokenString, newRefresh, err := a.GetToken(user.GetId())
+	currentHash := domain.HashRefreshToken(refreshToken)
+	issued, err := a.tokens.IssueRotatedPair(user.GetId(), claims.FamilyID)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate token: %w", err)
 	}
-	return tokenString, newRefresh, nil
+
+	if err := a.refreshStore.Rotate(ctx, currentHash, issued.Session); err != nil {
+		if errors.Is(err, core.ErrRefreshConsumed) {
+			if revokeErr := a.refreshStore.RevokeFamily(ctx, claims.FamilyID); revokeErr != nil {
+				return "", "", errors.Join(core.ErrInvalidRefresh, err, fmt.Errorf("revoke family: %w", revokeErr))
+			}
+			return "", "", core.ErrInvalidRefresh
+		}
+		if errors.Is(err, core.ErrRefreshNotFound) || errors.Is(err, core.ErrRefreshFamilyRevoked) {
+			return "", "", core.ErrInvalidRefresh
+		}
+		return "", "", err
+	}
+
+	return issued.AccessToken, issued.RefreshToken, nil
+}
+
+// RevokeRefreshFamily invalidates every refresh session in the family.
+func (a AuthenticationService[T]) RevokeRefreshFamily(ctx context.Context, familyID string) error {
+	if familyID == "" {
+		return fmt.Errorf("refresh family id must not be empty")
+	}
+	return a.refreshStore.RevokeFamily(ctx, familyID)
 }
 
 func (a AuthenticationService[T]) ValidateToken(ctx context.Context, tokenString string) (domain.IUserGeneric, error) {

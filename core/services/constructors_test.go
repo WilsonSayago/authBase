@@ -96,21 +96,21 @@ func TestGetAuthenticationInstanceReturnsIndependentPointers(t *testing.T) {
 	cfgA := constructorJwt("aaa")
 	cfgB := constructorJwt("bbb")
 
-	first, err := NewAuthenticationService[fakeUser](storeA, storeA, validateA, cfgA)
+	first, err := NewAuthenticationService[fakeUser](storeA, storeA, newFakeRefreshStore(), validateA, cfgA)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(A) error = %v", err)
 	}
-	second, err := NewAuthenticationService[fakeUser](storeB, storeB, validateB, cfgB)
+	second, err := NewAuthenticationService[fakeUser](storeB, storeB, newFakeRefreshStore(), validateB, cfgB)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(B) error = %v", err)
 	}
 	if first == second {
 		t.Fatal("NewAuthenticationService returned the same pointer twice")
 	}
-	if first.users != storeA || first.credentials != storeA || first.validatePort != validateA || first.tokens == nil {
+	if first.users != storeA || first.credentials != storeA || first.validatePort != validateA || first.tokens == nil || first.refreshStore == nil {
 		t.Fatal("first instance did not keep its own dependencies")
 	}
-	if second.users != storeB || second.credentials != storeB || second.validatePort != validateB || second.tokens == nil {
+	if second.users != storeB || second.credentials != storeB || second.validatePort != validateB || second.tokens == nil || second.refreshStore == nil {
 		t.Fatal("second instance did not keep its own dependencies")
 	}
 	if first.tokens == second.tokens {
@@ -126,11 +126,11 @@ func TestGetAuthenticationInstanceDistinctGenericTypesDoNotCollide(t *testing.T)
 	store := newFakeIdentityStore()
 	other := otherIdentityStore{}
 
-	first, err := NewAuthenticationService[fakeUser](store, store, validate, cfg)
+	first, err := NewAuthenticationService[fakeUser](store, store, newFakeRefreshStore(), validate, cfg)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(fakeUser) error = %v", err)
 	}
-	second, err := NewAuthenticationService[otherFakeUser](other, other, validate, cfg)
+	second, err := NewAuthenticationService[otherFakeUser](other, other, newFakeRefreshStore(), validate, cfg)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(otherFakeUser) error = %v", err)
 	}
@@ -154,12 +154,12 @@ func TestGetAuthenticationInstanceConcurrentIndependentDependencies(t *testing.T
 			store := newFakeIdentityStore()
 			validate := &fakeValidationPort{}
 			cfg := constructorJwt(fmt.Sprintf("%03d", i))
-			got, err := NewAuthenticationService[fakeUser](store, store, validate, cfg)
+			got, err := NewAuthenticationService[fakeUser](store, store, newFakeRefreshStore(), validate, cfg)
 			if err != nil {
 				t.Errorf("instance %d error = %v", i, err)
 				return
 			}
-			if got.users != store || got.credentials != store || got.validatePort != validate || got.tokens == nil {
+			if got.users != store || got.credentials != store || got.validatePort != validate || got.tokens == nil || got.refreshStore == nil {
 				t.Errorf("instance %d kept another call's dependencies", i)
 				return
 			}

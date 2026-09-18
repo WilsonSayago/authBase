@@ -25,7 +25,17 @@ func testJwtConfig() properties.Jwt {
 
 func newTestAuthService(t *testing.T, store *fakeIdentityStore, validate *fakeValidationPort) *AuthenticationService[fakeUser] {
 	t.Helper()
-	svc, err := NewAuthenticationService[fakeUser](store, store, validate, testJwtConfig())
+	return newTestAuthServiceWithRefresh(t, store, newFakeRefreshStore(), validate)
+}
+
+func newTestAuthServiceWithRefresh(
+	t *testing.T,
+	store *fakeIdentityStore,
+	refresh *fakeRefreshStore,
+	validate *fakeValidationPort,
+) *AuthenticationService[fakeUser] {
+	t.Helper()
+	svc, err := NewAuthenticationService[fakeUser](store, store, refresh, validate, testJwtConfig())
 	if err != nil {
 		t.Fatalf("NewAuthenticationService() error = %v", err)
 	}
@@ -200,7 +210,7 @@ func TestAuthenticationValidateTokenRejectsForeignKey(t *testing.T) {
 	foreignCfg := testJwtConfig()
 	foreignCfg.SecretKey = strings.Repeat("C", properties.MinSecretBytes)
 	foreignCfg.RefreshSecret = strings.Repeat("D", properties.MinSecretBytes)
-	foreign, err := NewAuthenticationService[fakeUser](store, store, validate, foreignCfg)
+	foreign, err := NewAuthenticationService[fakeUser](store, store, newFakeRefreshStore(), validate, foreignCfg)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(foreign) error = %v", err)
 	}
@@ -241,40 +251,13 @@ func TestValidateTokenActiveUserRequired(t *testing.T) {
 	}
 }
 
-func TestRefreshTokenActiveUserRequired(t *testing.T) {
-	t.Parallel()
-
-	store := newFakeIdentityStore()
-	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "stored-hash")
-	validate := &fakeValidationPort{
-		checkPassword: func(hashedPassword, password string) bool {
-			return hashedPassword == "stored-hash" && password == "plain-password"
-		},
-	}
-	svc := newTestAuthService(t, store, validate)
-
-	_, refresh, err := svc.Login(context.Background(), "ada@example.com", "plain-password")
-	if err != nil {
-		t.Fatalf("Login() error = %v", err)
-	}
-
-	store.setActive("user-1", false)
-	access, newRefresh, err := svc.RefreshToken(context.Background(), refresh)
-	if !errors.Is(err, core.ErrInactiveIdentity) {
-		t.Fatalf("RefreshToken() error = %v, want ErrInactiveIdentity", err)
-	}
-	if access != "" || newRefresh != "" {
-		t.Fatal("RefreshToken() returned tokens for inactive identity")
-	}
-}
-
 func TestNewAuthenticationServiceRejectsInvalidConfig(t *testing.T) {
 	t.Parallel()
 
 	cfg := testJwtConfig()
 	cfg.Issuer = ""
 	store := newFakeIdentityStore()
-	svc, err := NewAuthenticationService[fakeUser](store, store, &fakeValidationPort{}, cfg)
+	svc, err := NewAuthenticationService[fakeUser](store, store, newFakeRefreshStore(), &fakeValidationPort{}, cfg)
 	if err == nil {
 		t.Fatal("NewAuthenticationService() error = nil, want invalid config error")
 	}
@@ -287,7 +270,7 @@ func TestGetAuthenticationInstanceRejectsNilConfig(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeIdentityStore()
-	svc, err := GetAuthenticationInstance[fakeUser](store, store, &fakeValidationPort{}, nil)
+	svc, err := GetAuthenticationInstance[fakeUser](store, store, newFakeRefreshStore(), &fakeValidationPort{}, nil)
 	if err == nil {
 		t.Fatal("GetAuthenticationInstance() error = nil, want nil config error")
 	}

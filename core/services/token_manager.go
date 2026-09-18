@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -19,9 +20,19 @@ const (
 )
 
 // TokenClaims is the typed JWT payload used by authBase.
+// FamilyID is set only on refresh tokens.
 type TokenClaims struct {
 	TokenType TokenType `json:"token_type"`
+	FamilyID  string    `json:"family_id,omitempty"`
 	jwt.RegisteredClaims
+}
+
+// IssuedTokens is a signed access/refresh pair plus the refresh session metadata
+// that must be persisted before returning tokens to a client.
+type IssuedTokens struct {
+	AccessToken  string
+	RefreshToken string
+	Session      domain.RefreshSession
 }
 
 // TokenManager issues and verifies access/refresh tokens with a single policy.
@@ -39,7 +50,7 @@ func NewTokenManager(cfg properties.Jwt) (*TokenManager, error) {
 	return &TokenManager{
 		cfg:   cfg,
 		now:   time.Now,
-		newID: newRandomJTI,
+		newID: newRandomID,
 	}, nil
 }
 
@@ -57,20 +68,31 @@ func newTokenManagerForTest(cfg properties.Jwt, now func() time.Time, newID func
 	return tm, nil
 }
 
+// IssueInitialPair creates access/refresh tokens with a new refresh family.
+func (m *TokenManager) IssueInitialPair(subject string) (IssuedTokens, error) {
+	familyID, err := m.newID()
+	if err != nil {
+		return IssuedTokens{}, fmt.Errorf("generate family id: %w", err)
+	}
+	return m.issuePair(subject, familyID)
+}
+
+// IssueRotatedPair creates access/refresh tokens that continue an existing family.
+func (m *TokenManager) IssueRotatedPair(subject, familyID string) (IssuedTokens, error) {
+	if familyID == "" {
+		return IssuedTokens{}, fmt.Errorf("refresh family id must not be empty")
+	}
+	return m.issuePair(subject, familyID)
+}
+
 // IssuePair creates a signed access and refresh token for subject.
+// Prefer IssueInitialPair/IssueRotatedPair when persisting refresh sessions.
 func (m *TokenManager) IssuePair(subject string) (accessToken, refreshToken string, err error) {
-	if subject == "" {
-		return "", "", fmt.Errorf("token subject must not be empty")
-	}
-	accessToken, err = m.issue(subject, TokenTypeAccess, m.cfg.SecretKey, m.cfg.ExpirationTime)
+	issued, err := m.IssueInitialPair(subject)
 	if err != nil {
 		return "", "", err
 	}
-	refreshToken, err = m.issue(subject, TokenTypeRefresh, m.cfg.RefreshSecret, m.cfg.RefreshTokenTime)
-	if err != nil {
-		return "", "", err
-	}
-	return accessToken, refreshToken, nil
+	return issued.AccessToken, issued.RefreshToken, nil
 }
 
 // ParseAccess verifies an access token and returns typed claims.
@@ -83,29 +105,68 @@ func (m *TokenManager) ParseRefresh(tokenString string) (*TokenClaims, error) {
 	return m.parse(tokenString, TokenTypeRefresh, m.cfg.RefreshSecret)
 }
 
-func (m *TokenManager) issue(subject string, tokenType TokenType, secret string, lifetimeHours int) (string, error) {
+func (m *TokenManager) issuePair(subject, familyID string) (IssuedTokens, error) {
+	if subject == "" {
+		return IssuedTokens{}, fmt.Errorf("token subject must not be empty")
+	}
+	accessToken, _, err := m.issue(subject, TokenTypeAccess, "", m.cfg.SecretKey, m.cfg.ExpirationTime)
+	if err != nil {
+		return IssuedTokens{}, err
+	}
+	refreshToken, session, err := m.issue(subject, TokenTypeRefresh, familyID, m.cfg.RefreshSecret, m.cfg.RefreshTokenTime)
+	if err != nil {
+		return IssuedTokens{}, err
+	}
+	return IssuedTokens{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		Session:      session,
+	}, nil
+}
+
+func (m *TokenManager) issue(
+	subject string,
+	tokenType TokenType,
+	familyID string,
+	secret string,
+	lifetimeHours int,
+) (string, domain.RefreshSession, error) {
 	jti, err := m.newID()
 	if err != nil {
-		return "", fmt.Errorf("generate token id: %w", err)
+		return "", domain.RefreshSession{}, fmt.Errorf("generate token id: %w", err)
 	}
 	now := m.now()
+	expiresAt := now.Add(time.Duration(lifetimeHours) * time.Hour)
 	claims := TokenClaims{
 		TokenType: tokenType,
+		FamilyID:  familyID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   subject,
 			ID:        jti,
 			Issuer:    m.cfg.Issuer,
 			Audience:  []string{m.cfg.Audience},
 			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(lifetimeHours) * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString([]byte(secret))
 	if err != nil {
-		return "", fmt.Errorf("sign token: %w", err)
+		return "", domain.RefreshSession{}, fmt.Errorf("sign token: %w", err)
 	}
-	return signed, nil
+
+	session := domain.RefreshSession{}
+	if tokenType == TokenTypeRefresh {
+		session = domain.RefreshSession{
+			TokenID:   jti,
+			FamilyID:  familyID,
+			UserID:    subject,
+			TokenHash: domain.HashRefreshToken(signed),
+			IssuedAt:  now,
+			ExpiresAt: expiresAt,
+		}
+	}
+	return signed, session, nil
 }
 
 func (m *TokenManager) parse(tokenString string, expectedType TokenType, secret string) (*TokenClaims, error) {
@@ -143,10 +204,16 @@ func (m *TokenManager) parse(tokenString string, expectedType TokenType, secret 
 	if claims.ID == "" {
 		return nil, fmt.Errorf("token id must not be empty")
 	}
+	if expectedType == TokenTypeAccess && claims.FamilyID != "" {
+		return nil, fmt.Errorf("access token must not include family id")
+	}
+	if expectedType == TokenTypeRefresh && claims.FamilyID == "" {
+		return nil, fmt.Errorf("refresh family id is required")
+	}
 	return claims, nil
 }
 
-func newRandomJTI() (string, error) {
+func newRandomID() (string, error) {
 	buf := make([]byte, 16) // 128 bits
 	if _, err := rand.Read(buf); err != nil {
 		return "", err

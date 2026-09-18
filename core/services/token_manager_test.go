@@ -25,7 +25,7 @@ func TestTokenManagerIssueAndParseRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	fixed := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
-	ids := []string{"jti-access-1", "jti-refresh-1"}
+	ids := []string{"family-1", "jti-access-1", "jti-refresh-1"}
 	idx := 0
 	tm, err := newTokenManagerForTest(validTokenCfg(), func() time.Time { return fixed }, func() (string, error) {
 		id := ids[idx]
@@ -51,6 +51,9 @@ func TestTokenManagerIssueAndParseRoundTrip(t *testing.T) {
 	if accessClaims.Subject != "user-1" || accessClaims.TokenType != TokenTypeAccess || accessClaims.ID != "jti-access-1" {
 		t.Fatalf("unexpected access claims: %+v", accessClaims)
 	}
+	if accessClaims.FamilyID != "" {
+		t.Fatal("access token must not include family id")
+	}
 
 	refreshClaims, err := tm.ParseRefresh(refresh)
 	if err != nil {
@@ -58,6 +61,9 @@ func TestTokenManagerIssueAndParseRoundTrip(t *testing.T) {
 	}
 	if refreshClaims.Subject != "user-1" || refreshClaims.TokenType != TokenTypeRefresh || refreshClaims.ID != "jti-refresh-1" {
 		t.Fatalf("unexpected refresh claims: %+v", refreshClaims)
+	}
+	if refreshClaims.FamilyID != "family-1" {
+		t.Fatalf("refresh family = %q, want family-1", refreshClaims.FamilyID)
 	}
 }
 
@@ -274,6 +280,41 @@ func TestTokenManagerRejectsEmptySubjectOnIssue(t *testing.T) {
 		t.Fatal("IssuePair(\"\") error = nil, want error")
 	}
 }
+
+func TestTokenFamilyRotatedPairsShareFamily(t *testing.T) {
+	t.Parallel()
+
+	tm, err := NewTokenManager(validTokenCfg())
+	if err != nil {
+		t.Fatalf("NewTokenManager() error = %v", err)
+	}
+	first, err := tm.IssueInitialPair("user-1")
+	if err != nil {
+		t.Fatalf("IssueInitialPair() error = %v", err)
+	}
+	second, err := tm.IssueRotatedPair("user-1", first.Session.FamilyID)
+	if err != nil {
+		t.Fatalf("IssueRotatedPair() error = %v", err)
+	}
+	if first.Session.FamilyID == "" || first.Session.FamilyID != second.Session.FamilyID {
+		t.Fatalf("family ids = %q / %q", first.Session.FamilyID, second.Session.FamilyID)
+	}
+	if first.Session.TokenID == second.Session.TokenID {
+		t.Fatal("rotated pair must use a new jti")
+	}
+	if first.Session.TokenHash == second.Session.TokenHash {
+		t.Fatal("rotated pair must use a new hash")
+	}
+
+	accessClaims, err := tm.ParseAccess(first.AccessToken)
+	if err != nil {
+		t.Fatalf("ParseAccess() error = %v", err)
+	}
+	if accessClaims.FamilyID != "" {
+		t.Fatal("access token unexpectedly included family id")
+	}
+}
+
 
 func TestNewTokenManagerRejectsInvalidConfig(t *testing.T) {
 	t.Parallel()
