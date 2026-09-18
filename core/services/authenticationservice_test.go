@@ -1,10 +1,12 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 
+	"github.com/WilsonSayago/authBase/core"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
 )
 
@@ -20,9 +22,9 @@ func testJwtConfig() properties.Jwt {
 	}
 }
 
-func newTestAuthService(t *testing.T, port *fakeGenericPort, validate *fakeValidationPort) *AuthenticationService[fakeUser] {
+func newTestAuthService(t *testing.T, store *fakeIdentityStore, validate *fakeValidationPort) *AuthenticationService[fakeUser] {
 	t.Helper()
-	svc, err := NewAuthenticationService[fakeUser](port, validate, testJwtConfig())
+	svc, err := NewAuthenticationService[fakeUser](store, store, validate, testJwtConfig())
 	if err != nil {
 		t.Fatalf("NewAuthenticationService() error = %v", err)
 	}
@@ -32,20 +34,16 @@ func newTestAuthService(t *testing.T, port *fakeGenericPort, validate *fakeValid
 func TestAuthenticationLoginValidReturnsTokens(t *testing.T) {
 	t.Parallel()
 
-	port := newFakeGenericPort()
-	port.add(fakeUser{
-		id:       "user-1",
-		email:    "ada@example.com",
-		password: "stored-hash",
-	})
+	store := newFakeIdentityStore()
+	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "stored-hash")
 	validate := &fakeValidationPort{
 		checkPassword: func(hashedPassword, password string) bool {
 			return hashedPassword == "stored-hash" && password == "plain-password"
 		},
 	}
-	svc := newTestAuthService(t, port, validate)
+	svc := newTestAuthService(t, store, validate)
 
-	access, refresh, err := svc.Login("ada@example.com", "plain-password")
+	access, refresh, err := svc.Login(context.Background(), "ada@example.com", "plain-password")
 	if err != nil {
 		t.Fatalf("Login() error = %v", err)
 	}
@@ -57,72 +55,111 @@ func TestAuthenticationLoginValidReturnsTokens(t *testing.T) {
 	}
 }
 
-func TestAuthenticationLoginInvalidPassword(t *testing.T) {
+func TestInvalidCredentials(t *testing.T) {
 	t.Parallel()
 
-	port := newFakeGenericPort()
-	port.add(fakeUser{
-		id:       "user-1",
-		email:    "ada@example.com",
-		password: "stored-hash",
-	})
-	validate := &fakeValidationPort{
-		checkPassword: func(string, string) bool { return false },
+	tests := []struct {
+		name     string
+		username string
+		password string
+		setup    func(*fakeIdentityStore, *fakeValidationPort)
+	}{
+		{
+			name:     "wrong password",
+			username: "ada@example.com",
+			password: "wrong",
+			setup: func(_ *fakeIdentityStore, validate *fakeValidationPort) {
+				validate.checkPassword = func(string, string) bool { return false }
+			},
+		},
+		{
+			name:     "missing user",
+			username: "missing@example.com",
+			password: "any",
+		},
 	}
-	svc := newTestAuthService(t, port, validate)
 
-	access, refresh, err := svc.Login("ada@example.com", "wrong-password")
-	if err == nil {
-		t.Fatal("Login() error = nil, want invalid password error")
-	}
-	if access != "" || refresh != "" {
-		t.Fatal("Login() returned tokens for invalid password")
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			store := newFakeIdentityStore()
+			store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "stored-hash")
+			validate := &fakeValidationPort{
+				checkPassword: func(hashedPassword, password string) bool {
+					return hashedPassword == "stored-hash" && password == "plain-password"
+				},
+			}
+			if tc.setup != nil {
+				tc.setup(store, validate)
+			}
+			svc := newTestAuthService(t, store, validate)
+
+			access, refresh, err := svc.Login(context.Background(), tc.username, tc.password)
+			if !errors.Is(err, core.ErrInvalidCredentials) {
+				t.Fatalf("Login() error = %v, want ErrInvalidCredentials", err)
+			}
+			if access != "" || refresh != "" {
+				t.Fatal("Login() returned tokens for invalid credentials")
+			}
+		})
 	}
 }
 
-func TestAuthenticationLoginPropagatesFindByEmailError(t *testing.T) {
+func TestAuthenticationLoginPropagatesInfrastructureError(t *testing.T) {
 	t.Parallel()
 
-	port := newFakeGenericPort()
-	port.errByEmail = errors.New("lookup failed")
+	store := newFakeIdentityStore()
+	store.errByUsername = core.ErrUnavailable
 	validate := &fakeValidationPort{}
-	svc := newTestAuthService(t, port, validate)
+	svc := newTestAuthService(t, store, validate)
 
-	access, refresh, err := svc.Login("missing@example.com", "any")
-	if err == nil {
-		t.Fatal("Login() error = nil, want FindByEmail error")
+	access, refresh, err := svc.Login(context.Background(), "ada@example.com", "any")
+	if !errors.Is(err, core.ErrUnavailable) {
+		t.Fatalf("Login() error = %v, want ErrUnavailable", err)
 	}
 	if access != "" || refresh != "" {
-		t.Fatal("Login() returned tokens when FindByEmail failed")
+		t.Fatal("Login() returned tokens when store failed")
 	}
 	if validate.checkCalls != 0 {
 		t.Fatalf("CheckPassword calls = %d, want 0", validate.checkCalls)
 	}
 }
 
+func TestAuthenticationLoginRespectsCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeIdentityStore()
+	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "stored-hash")
+	svc := newTestAuthService(t, store, &fakeValidationPort{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _, err := svc.Login(ctx, "ada@example.com", "plain-password")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Login() error = %v, want context.Canceled", err)
+	}
+}
+
 func TestAuthenticationValidateTokenReturnsUser(t *testing.T) {
 	t.Parallel()
 
-	port := newFakeGenericPort()
-	user := fakeUser{
-		id:       "user-1",
-		email:    "ada@example.com",
-		password: "stored-hash",
-	}
-	port.add(user)
+	store := newFakeIdentityStore()
+	user := fakeUser{id: "user-1", email: "ada@example.com", active: true}
+	store.add(user, "stored-hash")
 	validate := &fakeValidationPort{
 		checkPassword: func(hashedPassword, password string) bool {
 			return hashedPassword == "stored-hash" && password == "plain-password"
 		},
 	}
-	svc := newTestAuthService(t, port, validate)
+	svc := newTestAuthService(t, store, validate)
 
-	access, _, err := svc.Login("ada@example.com", "plain-password")
+	access, _, err := svc.Login(context.Background(), "ada@example.com", "plain-password")
 	if err != nil {
 		t.Fatalf("Login() error = %v", err)
 	}
 
-	got, err := svc.ValidateToken(access)
+	got, err := svc.ValidateToken(context.Background(), access)
 	if err != nil {
 		t.Fatalf("ValidateToken() error = %v", err)
 	}
@@ -137,20 +174,16 @@ func TestAuthenticationValidateTokenReturnsUser(t *testing.T) {
 func TestAuthenticationValidateTokenRejectsForeignKey(t *testing.T) {
 	t.Parallel()
 
-	port := newFakeGenericPort()
-	port.add(fakeUser{
-		id:       "user-1",
-		email:    "ada@example.com",
-		password: "stored-hash",
-	})
+	store := newFakeIdentityStore()
+	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "stored-hash")
 	validate := &fakeValidationPort{
 		checkPassword: func(hashedPassword, password string) bool {
 			return hashedPassword == "stored-hash" && password == "plain-password"
 		},
 	}
-	svc := newTestAuthService(t, port, validate)
+	svc := newTestAuthService(t, store, validate)
 
-	access, _, err := svc.Login("ada@example.com", "plain-password")
+	access, _, err := svc.Login(context.Background(), "ada@example.com", "plain-password")
 	if err != nil {
 		t.Fatalf("Login() error = %v", err)
 	}
@@ -158,12 +191,12 @@ func TestAuthenticationValidateTokenRejectsForeignKey(t *testing.T) {
 	foreignCfg := testJwtConfig()
 	foreignCfg.SecretKey = strings.Repeat("C", properties.MinSecretBytes)
 	foreignCfg.RefreshSecret = strings.Repeat("D", properties.MinSecretBytes)
-	foreign, err := NewAuthenticationService[fakeUser](port, validate, foreignCfg)
+	foreign, err := NewAuthenticationService[fakeUser](store, store, validate, foreignCfg)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(foreign) error = %v", err)
 	}
 
-	got, err := foreign.ValidateToken(access)
+	got, err := foreign.ValidateToken(context.Background(), access)
 	if err == nil {
 		t.Fatal("ValidateToken() error = nil, want rejection for foreign signing key")
 	}
@@ -177,7 +210,8 @@ func TestNewAuthenticationServiceRejectsInvalidConfig(t *testing.T) {
 
 	cfg := testJwtConfig()
 	cfg.Issuer = ""
-	svc, err := NewAuthenticationService[fakeUser](newFakeGenericPort(), &fakeValidationPort{}, cfg)
+	store := newFakeIdentityStore()
+	svc, err := NewAuthenticationService[fakeUser](store, store, &fakeValidationPort{}, cfg)
 	if err == nil {
 		t.Fatal("NewAuthenticationService() error = nil, want invalid config error")
 	}
@@ -189,7 +223,8 @@ func TestNewAuthenticationServiceRejectsInvalidConfig(t *testing.T) {
 func TestGetAuthenticationInstanceRejectsNilConfig(t *testing.T) {
 	t.Parallel()
 
-	svc, err := GetAuthenticationInstance[fakeUser](newFakeGenericPort(), &fakeValidationPort{}, nil)
+	store := newFakeIdentityStore()
+	svc, err := GetAuthenticationInstance[fakeUser](store, store, &fakeValidationPort{}, nil)
 	if err == nil {
 		t.Fatal("GetAuthenticationInstance() error = nil, want nil config error")
 	}

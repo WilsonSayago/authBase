@@ -1,18 +1,19 @@
 package services
 
 import (
-	"errors"
+	"context"
 	"sync"
 
+	"github.com/WilsonSayago/authBase/core"
 	domain "github.com/WilsonSayago/authBase/core/domain"
+	"github.com/WilsonSayago/authBase/core/port"
 )
 
 type fakeUser struct {
-	id       string
-	email    string
-	password string
-	isAdmin  bool
-	active   bool
+	id      string
+	email   string
+	isAdmin bool
+	active  bool
 }
 
 func (u fakeUser) GetId() string {
@@ -23,8 +24,8 @@ func (u fakeUser) GetEmail() string {
 	return u.email
 }
 
-func (u fakeUser) GetPassword() string {
-	return u.password
+func (u fakeUser) GetActive() bool {
+	return u.active
 }
 
 func (u fakeUser) GetPermissions() []domain.Permission {
@@ -39,54 +40,80 @@ func (u fakeUser) HasPermission(string, domain.OperationEnum) bool {
 	return false
 }
 
-type fakeGenericPort struct {
+type fakeIdentityStore struct {
 	mu            sync.Mutex
-	byEmail       map[string]fakeUser
+	byUsername    map[string]port.CredentialRecord
 	byID          map[string]fakeUser
-	findByEmailN  int
-	findFullByIDN int
-	errByEmail    error
+	findCredN     int
+	findByIDN     int
+	errByUsername error
 	errByID       error
 }
 
-func newFakeGenericPort() *fakeGenericPort {
-	return &fakeGenericPort{
-		byEmail: make(map[string]fakeUser),
-		byID:    make(map[string]fakeUser),
+func newFakeIdentityStore() *fakeIdentityStore {
+	return &fakeIdentityStore{
+		byUsername: make(map[string]port.CredentialRecord),
+		byID:       make(map[string]fakeUser),
 	}
 }
 
-func (p *fakeGenericPort) add(user fakeUser) {
+func (p *fakeIdentityStore) add(user fakeUser, passwordHash string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.byEmail[user.email] = user
 	p.byID[user.id] = user
+	p.byUsername[user.email] = port.CredentialRecord{
+		UserID:       user.id,
+		Username:     user.email,
+		PasswordHash: passwordHash,
+		Active:       user.active,
+	}
 }
 
-func (p *fakeGenericPort) FindByEmail(email string) (fakeUser, error) {
+func (p *fakeIdentityStore) setActive(id string, active bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.findByEmailN++
-	if p.errByEmail != nil {
-		return fakeUser{}, p.errByEmail
-	}
-	user, ok := p.byEmail[email]
+	user, ok := p.byID[id]
 	if !ok {
-		return fakeUser{}, errors.New("user not found")
+		return
 	}
-	return user, nil
+	user.active = active
+	p.byID[id] = user
+	if cred, ok := p.byUsername[user.email]; ok {
+		cred.Active = active
+		p.byUsername[user.email] = cred
+	}
 }
 
-func (p *fakeGenericPort) FindFullById(id string) (fakeUser, error) {
+func (p *fakeIdentityStore) FindCredentialsByUsername(ctx context.Context, username string) (port.CredentialRecord, error) {
+	if err := ctx.Err(); err != nil {
+		return port.CredentialRecord{}, err
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.findFullByIDN++
+	p.findCredN++
+	if p.errByUsername != nil {
+		return port.CredentialRecord{}, p.errByUsername
+	}
+	cred, ok := p.byUsername[username]
+	if !ok {
+		return port.CredentialRecord{}, core.ErrNotFound
+	}
+	return cred, nil
+}
+
+func (p *fakeIdentityStore) FindByID(ctx context.Context, id string) (fakeUser, error) {
+	if err := ctx.Err(); err != nil {
+		return fakeUser{}, err
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.findByIDN++
 	if p.errByID != nil {
 		return fakeUser{}, p.errByID
 	}
 	user, ok := p.byID[id]
 	if !ok {
-		return fakeUser{}, errors.New("user not found")
+		return fakeUser{}, core.ErrNotFound
 	}
 	return user, nil
 }
@@ -114,3 +141,8 @@ func (v *fakeValidationPort) CheckPassword(hashedPassword, password string) bool
 	}
 	return hashedPassword == password
 }
+
+var (
+	_ port.CredentialReader     = (*fakeIdentityStore)(nil)
+	_ port.UserReader[fakeUser] = (*fakeIdentityStore)(nil)
+)

@@ -11,7 +11,7 @@ func TestNewUserGenericAndGetters(t *testing.T) {
 		Base: Base{Id: "role-1", Active: true},
 		Name: "editor",
 	}}
-	user := NewUserGeneric("user-1", "Ada", "ada@example.com", "secret", roles, true, true)
+	user := NewUserGeneric("user-1", "Ada", "ada@example.com", roles, true, true)
 
 	if got := user.GetId(); got != "user-1" {
 		t.Fatalf("GetId() = %q, want %q", got, "user-1")
@@ -22,14 +22,11 @@ func TestNewUserGenericAndGetters(t *testing.T) {
 	if got := user.GetEmail(); got != "ada@example.com" {
 		t.Fatalf("GetEmail() = %q, want %q", got, "ada@example.com")
 	}
-	if got := user.GetPassword(); got != "secret" {
-		t.Fatalf("GetPassword() = %q, want %q", got, "secret")
-	}
 	if got := user.GetIsAdmin(); !got {
 		t.Fatal("GetIsAdmin() = false, want true")
 	}
-	if !user.Active {
-		t.Fatal("Active = false, want true")
+	if !user.GetActive() {
+		t.Fatal("GetActive() = false, want true")
 	}
 	if got := len(user.GetRole()); got != 1 {
 		t.Fatalf("len(GetRole()) = %d, want 1", got)
@@ -58,7 +55,7 @@ func TestGetPermissionsORUnionForSameEntity(t *testing.T) {
 			}},
 		},
 	}
-	user := NewUserGeneric("user-1", "Ada", "ada@example.com", "secret", roles, false, true)
+	user := NewUserGeneric("user-1", "Ada", "ada@example.com", roles, false, true)
 
 	perms := user.GetPermissions()
 	if len(perms) != 1 {
@@ -85,7 +82,7 @@ func TestGetPermissionsDistinctEntities(t *testing.T) {
 			{Entity: "roles", Create: true},
 		},
 	}}
-	user := NewUserGeneric("user-1", "Ada", "ada@example.com", "secret", roles, false, true)
+	user := NewUserGeneric("user-1", "Ada", "ada@example.com", roles, false, true)
 
 	perms := user.GetPermissions()
 	if len(perms) != 2 {
@@ -116,7 +113,7 @@ func TestHasPermissionTable(t *testing.T) {
 			Update: true,
 		}},
 	}}
-	user := NewUserGeneric("user-1", "Ada", "ada@example.com", "secret", roles, false, true)
+	user := NewUserGeneric("user-1", "Ada", "ada@example.com", roles, false, true)
 
 	tests := []struct {
 		name      string
@@ -158,12 +155,12 @@ func TestAdminAndActiveFlagsStored(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			user := NewUserGeneric("user-1", "Ada", "ada@example.com", "secret", nil, tc.isAdmin, tc.active)
+			user := NewUserGeneric("user-1", "Ada", "ada@example.com", nil, tc.isAdmin, tc.active)
 			if got := user.GetIsAdmin(); got != tc.isAdmin {
 				t.Fatalf("GetIsAdmin() = %v, want %v", got, tc.isAdmin)
 			}
-			if got := user.Active; got != tc.active {
-				t.Fatalf("Active = %v, want %v", got, tc.active)
+			if got := user.GetActive(); got != tc.active {
+				t.Fatalf("GetActive() = %v, want %v", got, tc.active)
 			}
 		})
 	}

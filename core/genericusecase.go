@@ -1,5 +1,7 @@
 package core
 
+import "context"
+
 type GenericUseCase[T any] interface {
-	FindFullById(id string) (T, error)
+	FindByID(ctx context.Context, id string) (T, error)
 }

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -11,24 +12,24 @@ import (
 )
 
 type Authorization[T domain.IUserGeneric, C core.Context] struct {
-	port   port.GenericPort[T]
+	users  port.UserReader[T]
 	tokens *TokenManager
 }
 
 // NewAuthorization constructs an authorization middleware backed by TokenManager.
 func NewAuthorization[T domain.IUserGeneric, C core.Context](
-	userPort port.GenericPort[T],
+	users port.UserReader[T],
 	cfg properties.Jwt,
 ) (*Authorization[T, C], error) {
-	if userPort == nil {
-		return nil, fmt.Errorf("authorization user port is nil")
+	if users == nil {
+		return nil, fmt.Errorf("authorization user reader is nil")
 	}
 	tokens, err := NewTokenManager(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return &Authorization[T, C]{
-		port:   userPort,
+		users:  users,
 		tokens: tokens,
 	}, nil
 }
@@ -49,9 +50,9 @@ func (a *Authorization[T, C]) AuthorizeJWT() func(ctx C) {
 			return
 		}
 
-		user, err := a.port.FindFullById(claims.Subject)
+		user, err := a.users.FindByID(context.Background(), claims.Subject)
 		if err != nil {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			return
 		}
 		ctx.Set("user", user)
@@ -88,7 +89,8 @@ func (a *Authorization[T, C]) IsAuthorized(
 
 	if fnValidate != nil {
 		return fnValidate(user, entity, operation)
-	} else if user.GetId() == "" || (!user.GetIsAdmin() && !user.HasPermission(entity, operation)) {
+	}
+	if user.GetId() == "" || (!user.GetIsAdmin() && !user.HasPermission(entity, operation)) {
 		return false
 	}
 	return true

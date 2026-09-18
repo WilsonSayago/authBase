@@ -3,7 +3,7 @@ package domain
 type IUserGeneric interface {
 	GetId() string
 	GetEmail() string
-	GetPassword() string
+	GetActive() bool
 	GetPermissions() []Permission
 	GetIsAdmin() bool
 	HasPermission(entity string, operation OperationEnum) bool
@@ -11,23 +11,22 @@ type IUserGeneric interface {
 
 type UserGeneric struct {
 	Base
-	name        string
-	email       string
-	password    string
-	permissions []Permission
-	isAdmin     bool
-	roles       []Role
+	name    string
+	email   string
+	isAdmin bool
+	roles   []Role
 }
 
-func NewUserGeneric(id, name, email, password string, roles []Role, isAdmin, active bool) UserGeneric {
-	return UserGeneric{Base: Base{
-		Id:     id,
-		Active: active,
-	}, name: name,
-		email:    email,
-		password: password,
-		roles:    roles,
-		isAdmin:  isAdmin,
+func NewUserGeneric(id, name, email string, roles []Role, isAdmin, active bool) UserGeneric {
+	return UserGeneric{
+		Base: Base{
+			Id:     id,
+			Active: active,
+		},
+		name:    name,
+		email:   email,
+		roles:   roles,
+		isAdmin: isAdmin,
 	}
 }
 
@@ -43,8 +42,8 @@ func (u UserGeneric) GetEmail() string {
 	return u.email
 }
 
-func (u UserGeneric) GetPassword() string {
-	return u.password
+func (u UserGeneric) GetActive() bool {
+	return u.Active
 }
 
 func (u UserGeneric) GetPermissions() []Permission {
@@ -91,11 +90,6 @@ func (u UserGeneric) HasPermission(entity string, operation OperationEnum) bool 
 		}
 	}
 	return false
-}
-
-// CheckPassword checks if the password is correct
-func (u UserGeneric) CheckPassword(password string) bool {
-	return u.password == password
 }
 
 func (u UserGeneric) GetRole() []Role {

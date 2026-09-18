@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -8,30 +9,38 @@ import (
 
 	"github.com/WilsonSayago/authBase/core"
 	"github.com/WilsonSayago/authBase/core/domain"
+	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
 )
 
 type otherFakeUser struct {
-	id string
+	id     string
+	active bool
 }
 
 func (u otherFakeUser) GetId() string                       { return u.id }
 func (u otherFakeUser) GetEmail() string                    { return u.id + "@example.com" }
-func (u otherFakeUser) GetPassword() string                 { return "x" }
+func (u otherFakeUser) GetActive() bool                     { return u.active }
 func (u otherFakeUser) GetPermissions() []domain.Permission { return nil }
 func (u otherFakeUser) GetIsAdmin() bool                    { return false }
 func (u otherFakeUser) HasPermission(string, domain.OperationEnum) bool {
 	return false
 }
 
-type otherFakeGenericPort struct{}
+type otherIdentityStore struct{}
 
-func (p otherFakeGenericPort) FindByEmail(string) (otherFakeUser, error) {
-	return otherFakeUser{}, fmt.Errorf("not implemented")
+func (otherIdentityStore) FindCredentialsByUsername(ctx context.Context, username string) (port.CredentialRecord, error) {
+	if err := ctx.Err(); err != nil {
+		return port.CredentialRecord{}, err
+	}
+	return port.CredentialRecord{UserID: "other", Username: username, PasswordHash: "x", Active: true}, nil
 }
 
-func (p otherFakeGenericPort) FindFullById(id string) (otherFakeUser, error) {
-	return otherFakeUser{id: id}, nil
+func (otherIdentityStore) FindByID(ctx context.Context, id string) (otherFakeUser, error) {
+	if err := ctx.Err(); err != nil {
+		return otherFakeUser{}, err
+	}
+	return otherFakeUser{id: id, active: true}, nil
 }
 
 type fakeRolePort struct {
@@ -79,28 +88,28 @@ func constructorJwt(suffix string) properties.Jwt {
 func TestGetAuthenticationInstanceReturnsIndependentPointers(t *testing.T) {
 	t.Parallel()
 
-	portA := newFakeGenericPort()
-	portB := newFakeGenericPort()
+	storeA := newFakeIdentityStore()
+	storeB := newFakeIdentityStore()
 	validateA := &fakeValidationPort{}
 	validateB := &fakeValidationPort{}
 	cfgA := constructorJwt("aaa")
 	cfgB := constructorJwt("bbb")
 
-	first, err := NewAuthenticationService[fakeUser](portA, validateA, cfgA)
+	first, err := NewAuthenticationService[fakeUser](storeA, storeA, validateA, cfgA)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(A) error = %v", err)
 	}
-	second, err := NewAuthenticationService[fakeUser](portB, validateB, cfgB)
+	second, err := NewAuthenticationService[fakeUser](storeB, storeB, validateB, cfgB)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(B) error = %v", err)
 	}
 	if first == second {
 		t.Fatal("NewAuthenticationService returned the same pointer twice")
 	}
-	if first.port != portA || first.validatePort != validateA || first.tokens == nil {
+	if first.users != storeA || first.credentials != storeA || first.validatePort != validateA || first.tokens == nil {
 		t.Fatal("first instance did not keep its own dependencies")
 	}
-	if second.port != portB || second.validatePort != validateB || second.tokens == nil {
+	if second.users != storeB || second.credentials != storeB || second.validatePort != validateB || second.tokens == nil {
 		t.Fatal("second instance did not keep its own dependencies")
 	}
 	if first.tokens == second.tokens {
@@ -113,12 +122,14 @@ func TestGetAuthenticationInstanceDistinctGenericTypesDoNotCollide(t *testing.T)
 
 	cfg := constructorJwt("shared")
 	validate := &fakeValidationPort{}
+	store := newFakeIdentityStore()
+	other := otherIdentityStore{}
 
-	first, err := NewAuthenticationService[fakeUser](newFakeGenericPort(), validate, cfg)
+	first, err := NewAuthenticationService[fakeUser](store, store, validate, cfg)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(fakeUser) error = %v", err)
 	}
-	second, err := NewAuthenticationService[otherFakeUser](otherFakeGenericPort{}, validate, cfg)
+	second, err := NewAuthenticationService[otherFakeUser](other, other, validate, cfg)
 	if err != nil {
 		t.Fatalf("NewAuthenticationService(otherFakeUser) error = %v", err)
 	}
@@ -139,15 +150,15 @@ func TestGetAuthenticationInstanceConcurrentIndependentDependencies(t *testing.T
 		i := i
 		go func() {
 			defer wg.Done()
-			port := newFakeGenericPort()
+			store := newFakeIdentityStore()
 			validate := &fakeValidationPort{}
 			cfg := constructorJwt(fmt.Sprintf("%03d", i))
-			got, err := NewAuthenticationService[fakeUser](port, validate, cfg)
+			got, err := NewAuthenticationService[fakeUser](store, store, validate, cfg)
 			if err != nil {
 				t.Errorf("instance %d error = %v", i, err)
 				return
 			}
-			if got.port != port || got.validatePort != validate || got.tokens == nil {
+			if got.users != store || got.credentials != store || got.validatePort != validate || got.tokens == nil {
 				t.Errorf("instance %d kept another call's dependencies", i)
 				return
 			}
@@ -171,26 +182,26 @@ func TestGetAuthenticationInstanceConcurrentIndependentDependencies(t *testing.T
 func TestNewAuthorizationReturnsIndependentPointers(t *testing.T) {
 	t.Parallel()
 
-	portA := newFakeGenericPort()
-	portB := newFakeGenericPort()
+	storeA := newFakeIdentityStore()
+	storeB := newFakeIdentityStore()
 	cfgA := constructorJwt("authza")
 	cfgB := constructorJwt("authzb")
 
-	first, err := NewAuthorization[fakeUser, stubContext](portA, cfgA)
+	first, err := NewAuthorization[fakeUser, stubContext](storeA, cfgA)
 	if err != nil {
 		t.Fatalf("NewAuthorization(A) error = %v", err)
 	}
-	second, err := NewAuthorization[fakeUser, stubContext](portB, cfgB)
+	second, err := NewAuthorization[fakeUser, stubContext](storeB, cfgB)
 	if err != nil {
 		t.Fatalf("NewAuthorization(B) error = %v", err)
 	}
 	if first == second {
 		t.Fatal("NewAuthorization returned the same pointer twice")
 	}
-	if first.port != portA || first.tokens == nil {
+	if first.users != storeA || first.tokens == nil {
 		t.Fatal("first authorization instance did not keep its own dependencies")
 	}
-	if second.port != portB || second.tokens == nil {
+	if second.users != storeB || second.tokens == nil {
 		t.Fatal("second authorization instance did not keep its own dependencies")
 	}
 	if first.tokens == second.tokens {
@@ -203,7 +214,7 @@ func TestNewAuthorizationRejectsInvalidConfig(t *testing.T) {
 
 	cfg := constructorJwt("bad")
 	cfg.Audience = ""
-	svc, err := NewAuthorization[fakeUser, stubContext](newFakeGenericPort(), cfg)
+	svc, err := NewAuthorization[fakeUser, stubContext](newFakeIdentityStore(), cfg)
 	if err == nil {
 		t.Fatal("NewAuthorization() error = nil, want invalid config error")
 	}
@@ -237,5 +248,4 @@ func TestGetRoleServiceInstanceReturnsIndependentPointers(t *testing.T) {
 	}
 }
 
-// Ensure stubContext satisfies core.Context at compile time.
 var _ core.Context = stubContext{}
