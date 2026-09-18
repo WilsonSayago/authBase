@@ -73,6 +73,9 @@ func (a AuthenticationService[T]) Login(ctx context.Context, username, password 
 		}
 		return "", "", err
 	}
+	if !cred.Active {
+		return "", "", core.ErrInvalidCredentials
+	}
 	if !a.validatePort.CheckPassword(cred.PasswordHash, password) {
 		return "", "", core.ErrInvalidCredentials
 	}
@@ -90,7 +93,7 @@ func (a AuthenticationService[T]) RefreshToken(ctx context.Context, refreshToken
 		return "", "", fmt.Errorf("invalid token")
 	}
 
-	user, err := a.loadUser(ctx, claims.Subject)
+	user, err := a.requireActiveUser(ctx, claims.Subject)
 	if err != nil {
 		return "", "", err
 	}
@@ -107,14 +110,14 @@ func (a AuthenticationService[T]) ValidateToken(ctx context.Context, tokenString
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
-	user, err := a.loadUser(ctx, claims.Subject)
+	user, err := a.requireActiveUser(ctx, claims.Subject)
 	if err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-func (a AuthenticationService[T]) loadUser(ctx context.Context, id string) (T, error) {
+func (a AuthenticationService[T]) requireActiveUser(ctx context.Context, id string) (T, error) {
 	var zero T
 	user, err := a.users.FindByID(ctx, id)
 	if err != nil {
@@ -122,6 +125,9 @@ func (a AuthenticationService[T]) loadUser(ctx context.Context, id string) (T, e
 			return zero, core.ErrNotFound
 		}
 		return zero, err
+	}
+	if !user.GetActive() {
+		return zero, core.ErrInactiveIdentity
 	}
 	return user, nil
 }

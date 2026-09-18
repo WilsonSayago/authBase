@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/WilsonSayago/authBase/core"
+	"github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
 )
 
@@ -76,6 +77,14 @@ func TestInvalidCredentials(t *testing.T) {
 			name:     "missing user",
 			username: "missing@example.com",
 			password: "any",
+		},
+		{
+			name:     "inactive user",
+			username: "ada@example.com",
+			password: "plain-password",
+			setup: func(store *fakeIdentityStore, _ *fakeValidationPort) {
+				store.setActive("user-1", false)
+			},
 		},
 	}
 
@@ -205,6 +214,60 @@ func TestAuthenticationValidateTokenRejectsForeignKey(t *testing.T) {
 	}
 }
 
+func TestValidateTokenActiveUserRequired(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeIdentityStore()
+	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "stored-hash")
+	validate := &fakeValidationPort{
+		checkPassword: func(hashedPassword, password string) bool {
+			return hashedPassword == "stored-hash" && password == "plain-password"
+		},
+	}
+	svc := newTestAuthService(t, store, validate)
+
+	access, _, err := svc.Login(context.Background(), "ada@example.com", "plain-password")
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+
+	store.setActive("user-1", false)
+	got, err := svc.ValidateToken(context.Background(), access)
+	if !errors.Is(err, core.ErrInactiveIdentity) {
+		t.Fatalf("ValidateToken() error = %v, want ErrInactiveIdentity", err)
+	}
+	if got != nil {
+		t.Fatal("ValidateToken() returned user for inactive identity")
+	}
+}
+
+func TestRefreshTokenActiveUserRequired(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeIdentityStore()
+	store.add(fakeUser{id: "user-1", email: "ada@example.com", active: true}, "stored-hash")
+	validate := &fakeValidationPort{
+		checkPassword: func(hashedPassword, password string) bool {
+			return hashedPassword == "stored-hash" && password == "plain-password"
+		},
+	}
+	svc := newTestAuthService(t, store, validate)
+
+	_, refresh, err := svc.Login(context.Background(), "ada@example.com", "plain-password")
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+
+	store.setActive("user-1", false)
+	access, newRefresh, err := svc.RefreshToken(context.Background(), refresh)
+	if !errors.Is(err, core.ErrInactiveIdentity) {
+		t.Fatalf("RefreshToken() error = %v, want ErrInactiveIdentity", err)
+	}
+	if access != "" || newRefresh != "" {
+		t.Fatal("RefreshToken() returned tokens for inactive identity")
+	}
+}
+
 func TestNewAuthenticationServiceRejectsInvalidConfig(t *testing.T) {
 	t.Parallel()
 
@@ -230,5 +293,15 @@ func TestGetAuthenticationInstanceRejectsNilConfig(t *testing.T) {
 	}
 	if svc != nil {
 		t.Fatal("GetAuthenticationInstance() returned service for nil config")
+	}
+}
+
+func TestIsAuthorizedRejectsInactiveAdmin(t *testing.T) {
+	t.Parallel()
+
+	authz := &Authorization[fakeUser, stubContext]{}
+	user := fakeUser{id: "admin-1", isAdmin: true, active: false}
+	if authz.IsAuthorized(user, nil, "users", domain.READ) {
+		t.Fatal("inactive admin must not be authorized")
 	}
 }

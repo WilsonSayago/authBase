@@ -49,6 +49,9 @@ func (u UserGeneric) GetActive() bool {
 func (u UserGeneric) GetPermissions() []Permission {
 	permissionMap := make(map[string]Permission)
 	for _, role := range u.roles {
+		if !role.Active {
+			continue
+		}
 		for _, perm := range role.Permissions {
 			if existingPerm, exists := permissionMap[perm.Entity]; exists {
 				permissionMap[perm.Entity] = Permission{

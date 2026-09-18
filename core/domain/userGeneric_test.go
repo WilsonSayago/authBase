@@ -165,3 +165,58 @@ func TestAdminAndActiveFlagsStored(t *testing.T) {
 		})
 	}
 }
+
+func TestActiveRoleGrantsPermission(t *testing.T) {
+	t.Parallel()
+
+	roles := []Role{{
+		Base:        Base{Id: "role-1", Active: true},
+		Name:        "reader",
+		Permissions: []Permission{{Entity: "users", Read: true}},
+	}}
+	user := NewUserGeneric("user-1", "Ada", "ada@example.com", roles, false, true)
+	if !user.HasPermission("users", READ) {
+		t.Fatal("active role should grant read permission")
+	}
+}
+
+func TestInactiveRoleDoesNotGrantPermission(t *testing.T) {
+	t.Parallel()
+
+	roles := []Role{{
+		Base:        Base{Id: "role-1", Active: false},
+		Name:        "reader",
+		Permissions: []Permission{{Entity: "users", Read: true}},
+	}}
+	user := NewUserGeneric("user-1", "Ada", "ada@example.com", roles, false, true)
+	if user.HasPermission("users", READ) {
+		t.Fatal("inactive role must not grant permissions")
+	}
+	if len(user.GetPermissions()) != 0 {
+		t.Fatalf("GetPermissions() = %v, want empty", user.GetPermissions())
+	}
+}
+
+func TestMixedActiveAndInactiveRoles(t *testing.T) {
+	t.Parallel()
+
+	roles := []Role{
+		{
+			Base:        Base{Id: "inactive", Active: false},
+			Name:        "writer",
+			Permissions: []Permission{{Entity: "users", Create: true, Update: true}},
+		},
+		{
+			Base:        Base{Id: "active", Active: true},
+			Name:        "reader",
+			Permissions: []Permission{{Entity: "users", Read: true}},
+		},
+	}
+	user := NewUserGeneric("user-1", "Ada", "ada@example.com", roles, false, true)
+	if !user.HasPermission("users", READ) {
+		t.Fatal("active role read permission missing")
+	}
+	if user.HasPermission("users", CREATE) {
+		t.Fatal("inactive role create permission must be ignored")
+	}
+}

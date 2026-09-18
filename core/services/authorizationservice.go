@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -52,6 +53,14 @@ func (a *Authorization[T, C]) AuthorizeJWT() func(ctx C) {
 
 		user, err := a.users.FindByID(context.Background(), claims.Subject)
 		if err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+				return
+			}
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		if !user.GetActive() {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			return
 		}
@@ -87,6 +96,9 @@ func (a *Authorization[T, C]) IsAuthorized(
 	fnValidate func(interface{}, string, domain.OperationEnum) bool,
 	entity string, operation domain.OperationEnum) bool {
 
+	if !user.GetActive() {
+		return false
+	}
 	if fnValidate != nil {
 		return fnValidate(user, entity, operation)
 	}
