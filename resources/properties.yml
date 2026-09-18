@@ -1,5 +1,9 @@
 jwt:
-  secret-key: tuSecretKey
-  refresh-secret: tuRefreshSecret
+  secret-key: replace-with-at-least-32-byte-access-secret
+  refresh-secret: replace-with-different-32-byte-refresh-secret
   expiration-time: 1
-  refresh-token-time: 2
+  refresh-token-time: 24
+  issuer: authbase
+  audience: authbase-api
+  # leeway-seconds tolerates limited clock skew; maximum accepted value is 120.
+  leeway-seconds: 30
