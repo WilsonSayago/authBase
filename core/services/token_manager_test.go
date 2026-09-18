@@ -165,6 +165,37 @@ func TestTokenManagerRejectsMissingExpiration(t *testing.T) {
 	}
 }
 
+func TestTokenManagerRejectsMissingIssuedAt(t *testing.T) {
+	t.Parallel()
+
+	cfg := validTokenCfg()
+	tm, err := NewTokenManager(cfg)
+	if err != nil {
+		t.Fatalf("NewTokenManager() error = %v", err)
+	}
+
+	now := time.Now()
+	claims := TokenClaims{
+		TokenType: TokenTypeAccess,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   "user-1",
+			ID:        "jti-1",
+			Issuer:    cfg.Issuer,
+			Audience:  []string{cfg.Audience},
+			ExpiresAt: jwt.NewNumericDate(now.Add(time.Hour)),
+			// IssuedAt intentionally omitted: WithIssuedAt alone does not require it.
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(cfg.SecretKey))
+	if err != nil {
+		t.Fatalf("SignedString() error = %v", err)
+	}
+	if _, err := tm.ParseAccess(signed); err == nil {
+		t.Fatal("ParseAccess() error = nil for token without iat")
+	}
+}
+
 func TestTokenManagerRejectsExpired(t *testing.T) {
 	t.Parallel()
 

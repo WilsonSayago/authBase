@@ -134,6 +134,9 @@ func (m *TokenManager) parse(tokenString string, expectedType TokenType, secret 
 	if claims.TokenType != expectedType {
 		return nil, fmt.Errorf("invalid token type")
 	}
+	if claims.IssuedAt == nil {
+		return nil, fmt.Errorf("token issued-at is required")
+	}
 	if claims.Subject == "" {
 		return nil, fmt.Errorf("token subject must not be empty")
 	}
