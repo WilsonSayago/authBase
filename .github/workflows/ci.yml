@@ -38,3 +38,7 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+      - name: Vulnerability check
+        if: matrix.go == '1.27.1'
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
