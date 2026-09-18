@@ -36,7 +36,7 @@ and this project intends to follow
 
 Prepared breaking major for a valid Go module path. **Not published yet** —
 no date, no tag. Publish only after [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
-is fully satisfied (license, security contact, canonical remote, CI green).
+is fully satisfied (CI green), then publish manually.
 
 [Unreleased]: https://github.com/WilsonSayago/authBase/compare/HEAD...HEAD
 [3.0.0]: https://github.com/WilsonSayago/authBase/releases/tag/v3.0.0

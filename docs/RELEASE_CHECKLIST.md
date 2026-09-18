@@ -5,16 +5,18 @@ item below is checked by a human maintainer.
 
 ## Repository identity
 
-- [ ] `git remote` points at `https://github.com/WilsonSayago/authBase.git`
+- [x] `git remote` points at `https://github.com/WilsonSayago/authBase.git`
       (not `middleware.git`).
-- [ ] Module path is `github.com/WilsonSayago/authBase/v3`.
+- [x] Module path is `github.com/WilsonSayago/authBase/v3`.
 - [ ] Working tree is clean on the release commit.
 
 ## Legal and security
 
-- [ ] LICENSE file added with the maintainer-chosen license text.
-- [ ] `docs/SECURITY.md` lists a confirmed private reporting channel (no
-      placeholder blocker).
+- [x] LICENSE file added with the maintainer-chosen license text (MIT).
+- [x] `docs/SECURITY.md` lists a confirmed private reporting channel (GitHub
+      Security Advisories / private vulnerability reporting).
+- [ ] In GitHub → Settings → Code security → enable **Private vulnerability
+      reporting** so reporters can use the Security tab button.
 - [ ] SECURITY / README do not claim a published tag prematurely.
 
 ## Quality gates

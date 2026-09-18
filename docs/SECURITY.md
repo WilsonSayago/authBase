@@ -11,11 +11,15 @@ Support details will be restated when a release tag is published.
 
 **Do not** open a public GitHub issue for security reports.
 
-> **BLOCKER for release:** replace this marker with a maintainer-confirmed
-> private channel (for example a security email or GitHub Security Advisories
-> on the canonical repository) before declaring authBase release-ready.
+Report privately with **GitHub Security Advisories** on the canonical repository:
 
-Until that channel exists, treat unreleased builds as internal-only.
+- Open a draft advisory:
+  https://github.com/WilsonSayago/authBase/security/advisories/new
+- Or use **Report a vulnerability** on the repo Security tab (Private
+  vulnerability reporting).
+
+Include impact, affected versions/commits, and a minimal reproduction when
+possible. Allow reasonable time for a fix before any public disclosure.
 
 ## What never to log
 

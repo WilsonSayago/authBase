@@ -96,9 +96,12 @@ env GOCACHE=/private/tmp/authbase-go-cache GOWORK=off GOTOOLCHAIN=go1.27.1 \
 - [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) — publish gates
 - [`CHANGELOG.md`](CHANGELOG.md)
 
+## License
+
+MIT — see [`LICENSE`](LICENSE).
+
 ## Release status
 
-Preparation is in progress on module path `/v3`. Publication requires a
-maintainer-confirmed LICENSE, security contact, and a remote that points at the
-canonical `github.com/WilsonSayago/authBase` repository. See plan 008 status in
-`plans/README.md`.
+Module path `/v3`, MIT license, and private reporting via GitHub Security
+Advisories are in place. Publishing the `v3.0.0` tag remains a separate manual
+step — follow [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
