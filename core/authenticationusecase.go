@@ -7,5 +7,4 @@ type AuthenticationUseCase interface {
 	Login(username, password string) (string, string, error)
 	RefreshToken(refreshToken string) (string, string, error)
 	ValidateToken(tokenString string) (domain.IUserGeneric, error)
-	ValidateTokenAndRefresh() (string, error)
 }

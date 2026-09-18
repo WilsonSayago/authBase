@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -63,6 +64,18 @@ func (stubContext) Next()                                {}
 func (stubContext) Status(int)                           {}
 func (stubContext) Get(string) (interface{}, bool)       { return nil, false }
 
+func constructorJwt(suffix string) properties.Jwt {
+	return properties.Jwt{
+		SecretKey:        strings.Repeat("A", properties.MinSecretBytes-len(suffix)) + suffix,
+		RefreshSecret:    strings.Repeat("B", properties.MinSecretBytes-len(suffix)) + suffix,
+		ExpirationTime:   1,
+		RefreshTokenTime: 24,
+		Issuer:           "authbase-" + suffix,
+		Audience:         "clients-" + suffix,
+		LeewaySeconds:    0,
+	}
+}
+
 func TestGetAuthenticationInstanceReturnsIndependentPointers(t *testing.T) {
 	t.Parallel()
 
@@ -70,45 +83,47 @@ func TestGetAuthenticationInstanceReturnsIndependentPointers(t *testing.T) {
 	portB := newFakeGenericPort()
 	validateA := &fakeValidationPort{}
 	validateB := &fakeValidationPort{}
-	propA := &properties.JwtProp{Jwt: properties.Jwt{SecretKey: "secret-a", RefreshSecret: "refresh-a", ExpirationTime: 1, RefreshTokenTime: 2}}
-	propB := &properties.JwtProp{Jwt: properties.Jwt{SecretKey: "secret-b", RefreshSecret: "refresh-b", ExpirationTime: 3, RefreshTokenTime: 4}}
+	cfgA := constructorJwt("aaa")
+	cfgB := constructorJwt("bbb")
 
-	first := GetAuthenticationInstance[fakeUser](portA, validateA, propA)
-	second := GetAuthenticationInstance[fakeUser](portB, validateB, propB)
-
-	svcA, ok := first.(*AuthenticationService[fakeUser])
-	if !ok {
-		t.Fatalf("first type = %T, want *AuthenticationService[fakeUser]", first)
+	first, err := NewAuthenticationService[fakeUser](portA, validateA, cfgA)
+	if err != nil {
+		t.Fatalf("NewAuthenticationService(A) error = %v", err)
 	}
-	svcB, ok := second.(*AuthenticationService[fakeUser])
-	if !ok {
-		t.Fatalf("second type = %T, want *AuthenticationService[fakeUser]", second)
+	second, err := NewAuthenticationService[fakeUser](portB, validateB, cfgB)
+	if err != nil {
+		t.Fatalf("NewAuthenticationService(B) error = %v", err)
 	}
-	if svcA == svcB {
-		t.Fatal("GetAuthenticationInstance returned the same pointer twice")
+	if first == second {
+		t.Fatal("NewAuthenticationService returned the same pointer twice")
 	}
-	if svcA.port != portA || svcA.validatePort != validateA || svcA.prop != propA {
+	if first.port != portA || first.validatePort != validateA || first.tokens == nil {
 		t.Fatal("first instance did not keep its own dependencies")
 	}
-	if svcB.port != portB || svcB.validatePort != validateB || svcB.prop != propB {
+	if second.port != portB || second.validatePort != validateB || second.tokens == nil {
 		t.Fatal("second instance did not keep its own dependencies")
+	}
+	if first.tokens == second.tokens {
+		t.Fatal("authentication services unexpectedly share TokenManager")
 	}
 }
 
 func TestGetAuthenticationInstanceDistinctGenericTypesDoNotCollide(t *testing.T) {
 	t.Parallel()
 
-	prop := &properties.JwtProp{Jwt: properties.Jwt{SecretKey: "secret", RefreshSecret: "refresh", ExpirationTime: 1, RefreshTokenTime: 2}}
+	cfg := constructorJwt("shared")
 	validate := &fakeValidationPort{}
 
-	first := GetAuthenticationInstance[fakeUser](newFakeGenericPort(), validate, prop)
-	second := GetAuthenticationInstance[otherFakeUser](otherFakeGenericPort{}, validate, prop)
-
-	if _, ok := first.(*AuthenticationService[fakeUser]); !ok {
-		t.Fatalf("first type = %T, want *AuthenticationService[fakeUser]", first)
+	first, err := NewAuthenticationService[fakeUser](newFakeGenericPort(), validate, cfg)
+	if err != nil {
+		t.Fatalf("NewAuthenticationService(fakeUser) error = %v", err)
 	}
-	if _, ok := second.(*AuthenticationService[otherFakeUser]); !ok {
-		t.Fatalf("second type = %T, want *AuthenticationService[otherFakeUser]", second)
+	second, err := NewAuthenticationService[otherFakeUser](otherFakeGenericPort{}, validate, cfg)
+	if err != nil {
+		t.Fatalf("NewAuthenticationService(otherFakeUser) error = %v", err)
+	}
+	if first == nil || second == nil {
+		t.Fatal("expected non-nil services for distinct generic types")
 	}
 }
 
@@ -126,23 +141,17 @@ func TestGetAuthenticationInstanceConcurrentIndependentDependencies(t *testing.T
 			defer wg.Done()
 			port := newFakeGenericPort()
 			validate := &fakeValidationPort{}
-			prop := &properties.JwtProp{Jwt: properties.Jwt{
-				SecretKey:        fmt.Sprintf("secret-%d", i),
-				RefreshSecret:    fmt.Sprintf("refresh-%d", i),
-				ExpirationTime:   1,
-				RefreshTokenTime: 2,
-			}}
-			got := GetAuthenticationInstance[fakeUser](port, validate, prop)
-			svc, ok := got.(*AuthenticationService[fakeUser])
-			if !ok {
-				t.Errorf("instance %d type = %T", i, got)
+			cfg := constructorJwt(fmt.Sprintf("%03d", i))
+			got, err := NewAuthenticationService[fakeUser](port, validate, cfg)
+			if err != nil {
+				t.Errorf("instance %d error = %v", i, err)
 				return
 			}
-			if svc.port != port || svc.validatePort != validate || svc.prop != prop {
+			if got.port != port || got.validatePort != validate || got.tokens == nil {
 				t.Errorf("instance %d kept another call's dependencies", i)
 				return
 			}
-			results[i] = svc
+			results[i] = got
 		}()
 	}
 	wg.Wait()
@@ -164,28 +173,42 @@ func TestNewAuthorizationReturnsIndependentPointers(t *testing.T) {
 
 	portA := newFakeGenericPort()
 	portB := newFakeGenericPort()
-	propA := &properties.JwtProp{Jwt: properties.Jwt{SecretKey: "authz-a"}}
-	propB := &properties.JwtProp{Jwt: properties.Jwt{SecretKey: "authz-b"}}
+	cfgA := constructorJwt("authza")
+	cfgB := constructorJwt("authzb")
 
-	first := NewAuthorization[fakeUser, stubContext](portA, propA)
-	second := NewAuthorization[fakeUser, stubContext](portB, propB)
-
-	svcA, ok := first.(*Authorization[fakeUser, stubContext])
-	if !ok {
-		t.Fatalf("first type = %T, want *Authorization[fakeUser, stubContext]", first)
+	first, err := NewAuthorization[fakeUser, stubContext](portA, cfgA)
+	if err != nil {
+		t.Fatalf("NewAuthorization(A) error = %v", err)
 	}
-	svcB, ok := second.(*Authorization[fakeUser, stubContext])
-	if !ok {
-		t.Fatalf("second type = %T, want *Authorization[fakeUser, stubContext]", second)
+	second, err := NewAuthorization[fakeUser, stubContext](portB, cfgB)
+	if err != nil {
+		t.Fatalf("NewAuthorization(B) error = %v", err)
 	}
-	if svcA == svcB {
+	if first == second {
 		t.Fatal("NewAuthorization returned the same pointer twice")
 	}
-	if svcA.port != portA || svcA.prop != propA {
+	if first.port != portA || first.tokens == nil {
 		t.Fatal("first authorization instance did not keep its own dependencies")
 	}
-	if svcB.port != portB || svcB.prop != propB {
+	if second.port != portB || second.tokens == nil {
 		t.Fatal("second authorization instance did not keep its own dependencies")
+	}
+	if first.tokens == second.tokens {
+		t.Fatal("authorization services unexpectedly share TokenManager")
+	}
+}
+
+func TestNewAuthorizationRejectsInvalidConfig(t *testing.T) {
+	t.Parallel()
+
+	cfg := constructorJwt("bad")
+	cfg.Audience = ""
+	svc, err := NewAuthorization[fakeUser, stubContext](newFakeGenericPort(), cfg)
+	if err == nil {
+		t.Fatal("NewAuthorization() error = nil, want invalid config error")
+	}
+	if svc != nil {
+		t.Fatal("NewAuthorization() returned service for invalid config")
 	}
 }
 

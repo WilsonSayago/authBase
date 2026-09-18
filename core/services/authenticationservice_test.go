@@ -2,25 +2,31 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/WilsonSayago/authBase/infra/config/properties"
-	"github.com/golang-jwt/jwt/v5"
 )
 
-func newTestAuthService(port *fakeGenericPort, validate *fakeValidationPort) *AuthenticationService[fakeUser] {
-	return &AuthenticationService[fakeUser]{
-		port:         port,
-		validatePort: validate,
-		prop: &properties.JwtProp{
-			Jwt: properties.Jwt{
-				SecretKey:        "test-access-secret",
-				RefreshSecret:    "test-refresh-secret",
-				ExpirationTime:   1,
-				RefreshTokenTime: 2,
-			},
-		},
+func testJwtConfig() properties.Jwt {
+	return properties.Jwt{
+		SecretKey:        strings.Repeat("A", properties.MinSecretBytes),
+		RefreshSecret:    strings.Repeat("B", properties.MinSecretBytes),
+		ExpirationTime:   1,
+		RefreshTokenTime: 24,
+		Issuer:           "authbase-test",
+		Audience:         "authbase-clients",
+		LeewaySeconds:    0,
 	}
+}
+
+func newTestAuthService(t *testing.T, port *fakeGenericPort, validate *fakeValidationPort) *AuthenticationService[fakeUser] {
+	t.Helper()
+	svc, err := NewAuthenticationService[fakeUser](port, validate, testJwtConfig())
+	if err != nil {
+		t.Fatalf("NewAuthenticationService() error = %v", err)
+	}
+	return svc
 }
 
 func TestAuthenticationLoginValidReturnsTokens(t *testing.T) {
@@ -37,7 +43,7 @@ func TestAuthenticationLoginValidReturnsTokens(t *testing.T) {
 			return hashedPassword == "stored-hash" && password == "plain-password"
 		},
 	}
-	svc := newTestAuthService(port, validate)
+	svc := newTestAuthService(t, port, validate)
 
 	access, refresh, err := svc.Login("ada@example.com", "plain-password")
 	if err != nil {
@@ -63,7 +69,7 @@ func TestAuthenticationLoginInvalidPassword(t *testing.T) {
 	validate := &fakeValidationPort{
 		checkPassword: func(string, string) bool { return false },
 	}
-	svc := newTestAuthService(port, validate)
+	svc := newTestAuthService(t, port, validate)
 
 	access, refresh, err := svc.Login("ada@example.com", "wrong-password")
 	if err == nil {
@@ -80,7 +86,7 @@ func TestAuthenticationLoginPropagatesFindByEmailError(t *testing.T) {
 	port := newFakeGenericPort()
 	port.errByEmail = errors.New("lookup failed")
 	validate := &fakeValidationPort{}
-	svc := newTestAuthService(port, validate)
+	svc := newTestAuthService(t, port, validate)
 
 	access, refresh, err := svc.Login("missing@example.com", "any")
 	if err == nil {
@@ -109,7 +115,7 @@ func TestAuthenticationValidateTokenReturnsUser(t *testing.T) {
 			return hashedPassword == "stored-hash" && password == "plain-password"
 		},
 	}
-	svc := newTestAuthService(port, validate)
+	svc := newTestAuthService(t, port, validate)
 
 	access, _, err := svc.Login("ada@example.com", "plain-password")
 	if err != nil {
@@ -142,24 +148,19 @@ func TestAuthenticationValidateTokenRejectsForeignKey(t *testing.T) {
 			return hashedPassword == "stored-hash" && password == "plain-password"
 		},
 	}
-	svc := newTestAuthService(port, validate)
+	svc := newTestAuthService(t, port, validate)
 
 	access, _, err := svc.Login("ada@example.com", "plain-password")
 	if err != nil {
 		t.Fatalf("Login() error = %v", err)
 	}
 
-	foreign := &AuthenticationService[fakeUser]{
-		port:         port,
-		validatePort: validate,
-		prop: &properties.JwtProp{
-			Jwt: properties.Jwt{
-				SecretKey:        "other-access-secret",
-				RefreshSecret:    "other-refresh-secret",
-				ExpirationTime:   1,
-				RefreshTokenTime: 2,
-			},
-		},
+	foreignCfg := testJwtConfig()
+	foreignCfg.SecretKey = strings.Repeat("C", properties.MinSecretBytes)
+	foreignCfg.RefreshSecret = strings.Repeat("D", properties.MinSecretBytes)
+	foreign, err := NewAuthenticationService[fakeUser](port, validate, foreignCfg)
+	if err != nil {
+		t.Fatalf("NewAuthenticationService(foreign) error = %v", err)
 	}
 
 	got, err := foreign.ValidateToken(access)
@@ -169,10 +170,30 @@ func TestAuthenticationValidateTokenRejectsForeignKey(t *testing.T) {
 	if got != nil {
 		t.Fatal("ValidateToken() returned user for foreign signing key")
 	}
+}
 
-	// Ensure the original token is still a well-formed JWT so the failure is key-related.
-	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	if _, _, parseErr := parser.ParseUnverified(access, jwt.MapClaims{}); parseErr != nil {
-		t.Fatalf("access token is not a JWT: %v", parseErr)
+func TestNewAuthenticationServiceRejectsInvalidConfig(t *testing.T) {
+	t.Parallel()
+
+	cfg := testJwtConfig()
+	cfg.Issuer = ""
+	svc, err := NewAuthenticationService[fakeUser](newFakeGenericPort(), &fakeValidationPort{}, cfg)
+	if err == nil {
+		t.Fatal("NewAuthenticationService() error = nil, want invalid config error")
+	}
+	if svc != nil {
+		t.Fatal("NewAuthenticationService() returned service for invalid config")
+	}
+}
+
+func TestGetAuthenticationInstanceRejectsNilConfig(t *testing.T) {
+	t.Parallel()
+
+	svc, err := GetAuthenticationInstance[fakeUser](newFakeGenericPort(), &fakeValidationPort{}, nil)
+	if err == nil {
+		t.Fatal("GetAuthenticationInstance() error = nil, want nil config error")
+	}
+	if svc != nil {
+		t.Fatal("GetAuthenticationInstance() returned service for nil config")
 	}
 }

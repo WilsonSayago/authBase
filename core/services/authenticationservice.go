@@ -2,142 +2,101 @@ package services
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/WilsonSayago/authBase/core"
 	domain "github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthenticationService[T domain.IUserGeneric] struct {
 	port         port.GenericPort[T]
 	validatePort port.ValidationPort
-	prop         *properties.JwtProp
+	tokens       *TokenManager
 }
 
-func GetAuthenticationInstance[T domain.IUserGeneric](port port.GenericPort[T], validatePort port.ValidationPort, prop *properties.JwtProp) core.AuthenticationUseCase {
-	return &AuthenticationService[T]{
-		port:         port,
-		validatePort: validatePort,
-		prop:         prop,
+// NewAuthenticationService constructs an authentication service with validated JWT configuration.
+func NewAuthenticationService[T domain.IUserGeneric](
+	userPort port.GenericPort[T],
+	validatePort port.ValidationPort,
+	cfg properties.Jwt,
+) (*AuthenticationService[T], error) {
+	if userPort == nil {
+		return nil, fmt.Errorf("authentication user port is nil")
 	}
+	if validatePort == nil {
+		return nil, fmt.Errorf("authentication validation port is nil")
+	}
+	tokens, err := NewTokenManager(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &AuthenticationService[T]{
+		port:         userPort,
+		validatePort: validatePort,
+		tokens:       tokens,
+	}, nil
 }
 
-type MyCustomClaims struct {
-	User string `json:"user"`
-	jwt.RegisteredClaims
+// GetAuthenticationInstance is deprecated; prefer NewAuthenticationService.
+//
+// Deprecated: use NewAuthenticationService.
+func GetAuthenticationInstance[T domain.IUserGeneric](
+	userPort port.GenericPort[T],
+	validatePort port.ValidationPort,
+	prop *properties.JwtProp,
+) (core.AuthenticationUseCase, error) {
+	if prop == nil {
+		return nil, fmt.Errorf("jwt configuration is nil")
+	}
+	return NewAuthenticationService[T](userPort, validatePort, prop.Jwt)
 }
 
 func (a AuthenticationService[T]) GetToken(id string) (string, string, error) {
-	claims := MyCustomClaims{
-		id,
-		jwt.RegisteredClaims{
-			ID: id,
-			// A usual scenario is to set the expiration time relative to the current time
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(a.prop.Jwt.ExpirationTime) * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			//NotBefore: jwt.NewNumericDate(time.Now()),
-			//Issuer:    "test",
-			//Subject:   "somebody",
-
-			//Audience:  []string{"somebody_else"},
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(a.prop.Jwt.SecretKey))
-
-	if err != nil {
-		fmt.Println(err)
-		return "", "", err
-	}
-
-	refreshClaims := MyCustomClaims{
-		id,
-		jwt.RegisteredClaims{
-			ID:        id,
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(a.prop.Jwt.RefreshTokenTime) * time.Hour)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenString, err := refreshToken.SignedString([]byte(a.prop.Jwt.RefreshSecret))
-	if err != nil {
-		return "", "", err
-	}
-
-	return tokenString, refreshTokenString, nil
+	return a.tokens.IssuePair(id)
 }
 
 func (a AuthenticationService[T]) Login(username, password string) (string, string, error) {
-	// Find the user by username
 	user, err := a.port.FindByEmail(username)
 	if err != nil {
-		return "", "", fmt.Errorf("user not found: %v", err)
+		return "", "", fmt.Errorf("user not found: %w", err)
 	}
 
-	// Validate the password
 	if !a.validatePort.CheckPassword(user.GetPassword(), password) {
 		return "", "", fmt.Errorf("invalid password")
 	}
 
 	token, refreshToken, err := a.GetToken(user.GetId())
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate token: %v", err)
+		return "", "", fmt.Errorf("failed to generate token: %w", err)
 	}
 
 	return token, refreshToken, nil
-
 }
 
 func (a AuthenticationService[T]) RefreshToken(refreshToken string) (string, string, error) {
-	claims := &jwt.MapClaims{}
-	token, err := jwt.ParseWithClaims(refreshToken, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(a.prop.Jwt.RefreshSecret), nil
-	})
-
-	if err != nil || !token.Valid {
+	claims, err := a.tokens.ParseRefresh(refreshToken)
+	if err != nil {
 		return "", "", fmt.Errorf("invalid token")
 	}
 
-	userId := (*claims)["user"].(string)
-
-	tokenString, refreshToken, err := a.GetToken(userId)
-
+	tokenString, newRefresh, err := a.GetToken(claims.Subject)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate token: %v", err)
+		return "", "", fmt.Errorf("failed to generate token: %w", err)
 	}
 
-	return tokenString, refreshToken, nil
+	return tokenString, newRefresh, nil
 }
 
 func (a AuthenticationService[T]) ValidateToken(tokenString string) (domain.IUserGeneric, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(a.prop.Jwt.SecretKey), nil
-	})
-
+	claims, err := a.tokens.ParseAccess(tokenString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse token: %v", err)
+		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userId := claims["user"].(string)
-		user, err := a.port.FindFullById(userId)
-		if err != nil {
-			return nil, fmt.Errorf("user not found: %v", err)
-		}
-		return user, nil
-	} else {
-		return nil, fmt.Errorf("invalid token")
+	user, err := a.port.FindFullById(claims.Subject)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
 	}
-}
-
-func (a AuthenticationService[T]) ValidateTokenAndRefresh() (string, error) {
-	//TODO implement me
-	panic("implement me")
+	return user, nil
 }

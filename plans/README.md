@@ -35,7 +35,7 @@ fila al terminar.
 |------|--------|-----------|----------|------------|--------|
 | 001 | Completar initModules/v2 y establecer pruebas/CI | P1 | M | — | DONE |
 | 002 | Eliminar singletons globales e initModules | P1 | M | 001 | DONE |
-| 003 | Centralizar y endurecer JWT y configuración | P1 | L | 001, 002 | TODO |
+| 003 | Centralizar y endurecer JWT y configuración | P1 | L | 001, 002 | DONE |
 | 004 | Aplicar estado activo y aislar credenciales | P1 | L | 003 | TODO |
 | 005 | Hacer el middleware de autorización panic-safe | P1 | M | 003, 004 | TODO |
 | 006 | Implementar rotación y detección de replay de refresh tokens | P2 | L | 003, 004 | TODO |

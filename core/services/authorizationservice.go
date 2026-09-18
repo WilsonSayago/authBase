@@ -8,19 +8,29 @@ import (
 	"github.com/WilsonSayago/authBase/core/domain"
 	"github.com/WilsonSayago/authBase/core/port"
 	"github.com/WilsonSayago/authBase/infra/config/properties"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type Authorization[T domain.IUserGeneric, C core.Context] struct {
-	port port.GenericPort[T]
-	prop *properties.JwtProp
+	port   port.GenericPort[T]
+	tokens *TokenManager
 }
 
-func NewAuthorization[T domain.IUserGeneric, C core.Context](port port.GenericPort[T], prop *properties.JwtProp) core.AuthorizationUseCase[T, C] {
-	return &Authorization[T, C]{
-		port: port,
-		prop: prop,
+// NewAuthorization constructs an authorization middleware backed by TokenManager.
+func NewAuthorization[T domain.IUserGeneric, C core.Context](
+	userPort port.GenericPort[T],
+	cfg properties.Jwt,
+) (*Authorization[T, C], error) {
+	if userPort == nil {
+		return nil, fmt.Errorf("authorization user port is nil")
 	}
+	tokens, err := NewTokenManager(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &Authorization[T, C]{
+		port:   userPort,
+		tokens: tokens,
+	}, nil
 }
 
 func (a *Authorization[T, C]) AuthorizeJWT() func(ctx C) {
@@ -33,25 +43,19 @@ func (a *Authorization[T, C]) AuthorizeJWT() func(ctx C) {
 		}
 
 		tokenString := authHeader[len(BearerSchema):]
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(a.prop.Jwt.SecretKey), nil
-		})
-
-		if token != nil && token.Valid {
-			userId := token.Claims.(jwt.MapClaims)["user"].(string)
-			user, err := a.port.FindFullById(userId)
-			if err != nil {
-				ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
-				return
-			}
-			ctx.Set("user", user)
-			ctx.Next()
-		} else {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
+		claims, err := a.tokens.ParseAccess(tokenString)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+			return
 		}
+
+		user, err := a.port.FindFullById(claims.Subject)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
+			return
+		}
+		ctx.Set("user", user)
+		ctx.Next()
 	}
 }
 
