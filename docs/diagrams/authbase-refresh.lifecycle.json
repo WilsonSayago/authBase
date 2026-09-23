@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "authBase — Ciclo de sesión refresh",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 640],
+    "views": [
+      {
+        "id": "main-path",
+        "label": "Rotación normal",
+        "focus": ["created", "active", "rotating", "consumed", "next_active"],
+        "note": "Create → Active → Rotate consume el actual e inserta el siguiente."
+      },
+      {
+        "id": "replay",
+        "label": "Replay",
+        "focus": ["rotating", "replayed", "family_revoked"],
+        "note": "ErrRefreshConsumed en Rotate dispara RevokeFamily (terminal)."
+      },
+      {
+        "id": "exits",
+        "label": "Salidas",
+        "focus": ["active", "await_logout", "family_revoked", "expired"],
+        "note": "Logout o expiry invalidan la familia o la sesión."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "main", "label": "Sesión refresh" },
+    { "id": "waiting", "label": "Espera" },
+    { "id": "exceptions", "label": "Detección" },
+    { "id": "terminal", "label": "Terminales" }
+  ],
+  "states": [
+    {
+      "id": "created",
+      "type": "start",
+      "label": "Created",
+      "sublabel": "Create hash",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "entry"
+    },
+    {
+      "id": "active",
+      "type": "active",
+      "label": "Active",
+      "sublabel": "usable",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "tag": "session"
+    },
+    {
+      "id": "rotating",
+      "type": "active",
+      "label": "Rotating",
+      "sublabel": "Rotate CAS",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "atomic"
+    },
+    {
+      "id": "consumed",
+      "type": "decision",
+      "label": "Consumed",
+      "sublabel": "rotado OK",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "done"
+    },
+    {
+      "id": "next_active",
+      "type": "success",
+      "label": "Next active",
+      "sublabel": "nueva sesión",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "tag": "family"
+    },
+    {
+      "id": "await_logout",
+      "type": "waiting",
+      "label": "Logout",
+      "sublabel": "RevokeRefreshFamily",
+      "lane": "waiting",
+      "col": 0,
+      "tag": "pause"
+    },
+    {
+      "id": "stale",
+      "type": "waiting",
+      "label": "Stale",
+      "sublabel": "ya no usable",
+      "lane": "waiting",
+      "col": 1,
+      "tag": "wait"
+    },
+    {
+      "id": "replayed",
+      "type": "failure",
+      "label": "Replayed",
+      "sublabel": "ErrRefreshConsumed",
+      "lane": "exceptions",
+      "col": 0,
+      "yOffset": 78,
+      "tag": "terminal"
+    },
+    {
+      "id": "family_revoked",
+      "type": "failure",
+      "label": "Family revoked",
+      "sublabel": "RevokeFamily",
+      "lane": "terminal",
+      "col": 0,
+      "tag": "terminal"
+    },
+    {
+      "id": "expired",
+      "type": "failure",
+      "label": "Expired",
+      "sublabel": "expires_at",
+      "lane": "terminal",
+      "col": 1,
+      "tag": "terminal"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "t-logout-wait",
+      "from": "rotating",
+      "to": "await_logout",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight"
+    },
+    {
+      "id": "t-stale",
+      "from": "consumed",
+      "to": "stale",
+      "variant": "default",
+      "route": "drop"
+    },
+    {
+      "id": "t-replay",
+      "from": "rotating",
+      "to": "replayed",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [[320, 157], [320, 385]]
+    },
+    {
+      "id": "t-revoke",
+      "from": "await_logout",
+      "to": "family_revoked",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "via": [[480, 336], [480, 432], [402, 432]]
+    },
+    {
+      "id": "t-expire",
+      "from": "stale",
+      "to": "expired",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight"
+    },
+    {
+      "id": "t-replay-revoke",
+      "from": "replayed",
+      "to": "family_revoked",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Rotación",
+      "items": [
+        "Rotate: consumed + next en una transacción; misma family_id"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Terminales",
+      "items": [
+        "Replay ⇒ RevokeFamily; logout vía RevokeRefreshFamily"
+      ]
+    }
+  ]
+}

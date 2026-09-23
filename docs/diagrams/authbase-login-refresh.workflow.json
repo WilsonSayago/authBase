@@ -1,0 +1,169 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "authBase — Login y refresh",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "login-path",
+        "label": "Login",
+        "focus": ["client", "check", "issue", "create", "pair"],
+        "note": "Credenciales activas → par JWT; Create del hash antes de devolver tokens."
+      },
+      {
+        "id": "refresh-path",
+        "label": "Refresh",
+        "focus": ["refresh_in", "rotate", "new_pair"],
+        "note": "ParseRefresh + usuario activo + Rotate atómico en la misma familia."
+      },
+      {
+        "id": "replay",
+        "label": "Replay",
+        "focus": ["rotate", "replay", "deny"],
+        "note": "ErrRefreshConsumed ⇒ RevokeFamily y ErrInvalidRefresh público."
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "client", "label": "Cliente / HTTP" },
+    { "id": "authn", "label": "AuthenticationService" },
+    { "id": "store", "label": "RefreshTokenStore" }
+  ],
+  "phases": [
+    { "id": "login", "label": "Login", "fromCol": 0, "toCol": 2 },
+    { "id": "refresh", "label": "Refresh + replay", "fromCol": 3, "toCol": 5, "variant": "emphasis" }
+  ],
+  "mainPath": ["client", "check", "issue", "create", "pair"],
+  "nodes": [
+    {
+      "id": "client",
+      "lane": "client",
+      "col": 0,
+      "type": "frontend",
+      "label": "Login request",
+      "sublabel": "user + password",
+      "width": 128
+    },
+    {
+      "id": "check",
+      "lane": "authn",
+      "col": 1,
+      "type": "security",
+      "label": "Creds + bcrypt",
+      "sublabel": "activo?",
+      "tag": "ErrInvalidCredentials",
+      "width": 132
+    },
+    {
+      "id": "issue",
+      "lane": "authn",
+      "col": 2,
+      "type": "backend",
+      "label": "issueInitialPair",
+      "sublabel": "TokenManager",
+      "width": 128
+    },
+    {
+      "id": "create",
+      "lane": "store",
+      "col": 2,
+      "type": "database",
+      "label": "Create",
+      "sublabel": "token_hash",
+      "tag": "antes de return",
+      "width": 120
+    },
+    {
+      "id": "pair",
+      "lane": "client",
+      "col": 3,
+      "type": "backend",
+      "label": "access + refresh",
+      "sublabel": "al cliente",
+      "width": 128
+    },
+    {
+      "id": "refresh_in",
+      "lane": "client",
+      "col": 4,
+      "type": "frontend",
+      "label": "Refresh request",
+      "sublabel": "refresh JWT",
+      "width": 128
+    },
+    {
+      "id": "rotate",
+      "lane": "store",
+      "col": 4,
+      "type": "database",
+      "label": "Parse + Rotate",
+      "sublabel": "atómico",
+      "width": 128
+    },
+    {
+      "id": "new_pair",
+      "lane": "client",
+      "col": 5,
+      "type": "cloud",
+      "label": "Nuevo par",
+      "sublabel": "misma family",
+      "width": 120
+    },
+    {
+      "id": "replay",
+      "lane": "store",
+      "col": 5,
+      "type": "security",
+      "label": "RevokeFamily",
+      "sublabel": "replay",
+      "tag": "ErrRefreshConsumed",
+      "width": 128
+    },
+    {
+      "id": "deny",
+      "lane": "authn",
+      "col": 5,
+      "type": "security",
+      "label": "ErrInvalidRefresh",
+      "sublabel": "401 genérico",
+      "width": 128
+    }
+  ],
+  "edges": [
+    { "id": "e-login", "from": "client", "to": "check", "variant": "emphasis" },
+    { "id": "e-check-issue", "from": "check", "to": "issue", "label": "ok", "variant": "emphasis" },
+    { "id": "e-issue-create", "from": "issue", "to": "create", "label": "session" },
+    { "id": "e-create-pair", "from": "create", "to": "pair", "variant": "emphasis" },
+    { "id": "e-later", "from": "pair", "to": "refresh_in", "label": "luego", "variant": "dashed", "role": "branch" },
+    { "id": "e-rotate", "from": "refresh_in", "to": "rotate", "variant": "emphasis" },
+    { "id": "e-new", "from": "rotate", "to": "new_pair", "label": "ok", "role": "return" },
+    {
+      "id": "e-replay",
+      "from": "rotate",
+      "to": "replay",
+      "label": "consumed",
+      "variant": "security",
+      "role": "error"
+    },
+    { "id": "e-deny", "from": "replay", "to": "deny", "variant": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Camino principal",
+      "items": [
+        "Login colapsa fallos a ErrInvalidCredentials; Create precede al return",
+        "Refresh rota en la misma family_id y emite un nuevo par"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Replay",
+      "items": [
+        "Segundo Rotate del mismo hash ⇒ RevokeFamily + ErrInvalidRefresh",
+        "Nunca distinguir not-found / consumed / revoked al cliente"
+      ]
+    }
+  ]
+}

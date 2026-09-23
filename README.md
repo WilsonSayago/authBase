@@ -90,6 +90,8 @@ env GOCACHE=/private/tmp/authbase-go-cache GOWORK=off GOTOOLCHAIN=go1.27.1 \
 
 ## Docs
 
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — library vs microservice responsibilities
+- [`docs/diagrams/`](docs/diagrams/) — interactive architecture / login-refresh / lifecycle diagrams (Archify)
 - [`docs/MIGRATION_V3.md`](docs/MIGRATION_V3.md) — API old → new
 - [`docs/SECURITY.md`](docs/SECURITY.md) — reporting and logging rules
 - [`docs/refresh-token-store.md`](docs/refresh-token-store.md) — store contract

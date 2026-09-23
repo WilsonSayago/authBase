@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "authBase — Mapa de componentes",
+    "quality_profile": "showcase",
+    "viewBox": [1160, 700],
+    "repository": {
+      "url": "https://github.com/WilsonSayago/authBase",
+      "provider": "github",
+      "revision": "d1725d66406536920450af143531b0abc6a3d8ae"
+    },
+    "views": [
+      {
+        "id": "authn-path",
+        "label": "Autenticación",
+        "focus": ["bootstrap", "authn", "tokens", "identity", "refresh"],
+        "note": "Login y refresh pasan por AuthenticationService; el store solo guarda hashes."
+      },
+      {
+        "id": "authz-path",
+        "label": "Autorización",
+        "focus": ["http", "authz", "tokens", "identity"],
+        "note": "AuthorizeJWT reutiliza TokenManager e Identity ports cableados en bootstrap."
+      },
+      {
+        "id": "boundary",
+        "label": "Límites",
+        "focus": ["bootstrap", "authn", "authz", "identity", "refresh"],
+        "note": "La app provee ports; authBase no trae HTTP server ni DB."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "bootstrap",
+      "type": "backend",
+      "label": "bootstrap",
+      "sublabel": "composition root",
+      "pos": [40, 300],
+      "size": [132, 56],
+      "tag": "servicio",
+      "sources": [{ "path": "examples/quickstart/main.go", "line": 19, "end_line": 62, "label": "wiring" }]
+    },
+    {
+      "id": "http",
+      "type": "frontend",
+      "label": "HTTP adapter",
+      "sublabel": "core.Context",
+      "pos": [40, 460],
+      "size": [132, 56],
+      "sources": [{ "path": "core/authorizationusecase.go", "line": 9, "end_line": 19, "label": "Context" }]
+    },
+    {
+      "id": "authn",
+      "type": "backend",
+      "label": "AuthenticationService",
+      "sublabel": "Login · Refresh",
+      "pos": [260, 220],
+      "size": [168, 56],
+      "tag": "emit boundary",
+      "sources": [{ "path": "core/services/authenticationservice.go", "line": 23, "end_line": 53, "label": "ctor" }]
+    },
+    {
+      "id": "authz",
+      "type": "security",
+      "label": "Authorization",
+      "sublabel": "AuthorizeJWT",
+      "pos": [260, 460],
+      "size": [168, 56],
+      "sources": [{ "path": "core/services/authorizationservice.go", "line": 29, "end_line": 72, "label": "ctor" }]
+    },
+    {
+      "id": "jwt",
+      "type": "security",
+      "label": "properties.Jwt",
+      "sublabel": "Validate()",
+      "pos": [540, 80],
+      "size": [148, 52],
+      "sources": [{ "path": "infra/config/properties/jwt.go", "line": 17, "end_line": 25, "label": "Jwt" }]
+    },
+    {
+      "id": "tokens",
+      "type": "backend",
+      "label": "TokenManager",
+      "sublabel": "Parse · issue*",
+      "pos": [540, 340],
+      "size": [148, 56],
+      "tag": "shared",
+      "sources": [{ "path": "core/services/token_manager.go", "line": 38, "end_line": 57, "label": "TokenManager" }]
+    },
+    {
+      "id": "validation",
+      "type": "backend",
+      "label": "ValidationService",
+      "sublabel": "bcrypt",
+      "pos": [540, 500],
+      "size": [148, 56],
+      "sources": [{ "path": "infra/secundary/validationservice.go", "line": 1, "end_line": 25, "label": "bcrypt" }]
+    },
+    {
+      "id": "identity",
+      "type": "database",
+      "label": "Identity ports",
+      "sublabel": "User · Credential",
+      "pos": [800, 40],
+      "size": [152, 56],
+      "tag": "app adapter",
+      "sources": [
+        { "path": "core/port/user_reader.go", "line": 10, "end_line": 12, "label": "UserReader" },
+        { "path": "core/port/credential_reader.go", "line": 14, "end_line": 16, "label": "CredentialReader" }
+      ]
+    },
+    {
+      "id": "refresh",
+      "type": "database",
+      "label": "RefreshTokenStore",
+      "sublabel": "hash · Rotate",
+      "pos": [800, 500],
+      "size": [152, 56],
+      "tag": "app adapter",
+      "sources": [{ "path": "core/port/refresh_token_port.go", "line": 11, "end_line": 17, "label": "port" }]
+    },
+    {
+      "id": "domain",
+      "type": "backend",
+      "label": "core/domain",
+      "sublabel": "session · user",
+      "pos": [1000, 360],
+      "size": [132, 56],
+      "sources": [{ "path": "core/domain/refresh_session.go", "line": 8, "end_line": 22, "label": "RefreshSession" }]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Librería authBase/v3",
+      "wraps": ["authn", "authz", "jwt", "tokens", "validation"]
+    },
+    {
+      "kind": "region",
+      "label": "Composition root",
+      "wraps": ["bootstrap", "http"]
+    },
+    {
+      "kind": "region",
+      "label": "Adapters app",
+      "wraps": ["identity", "refresh"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "boot-authn",
+      "from": "bootstrap",
+      "to": "authn",
+      "label": "NewAuthn",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "left",
+      "labelDy": -24
+    },
+    {
+      "id": "http-authz",
+      "from": "http",
+      "to": "authz",
+      "label": "Bearer",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "boot-authz",
+      "from": "bootstrap",
+      "to": "authz",
+      "label": "NewAuthz",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "labelDy": 20
+    },
+    {
+      "id": "authn-tokens",
+      "from": "authn",
+      "to": "tokens",
+      "label": "issue/Parse",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "labelDy": 24
+    },
+    {
+      "id": "authn-identity",
+      "from": "authn",
+      "to": "identity",
+      "label": "User/Cred",
+      "fromSide": "top",
+      "toSide": "left",
+      "labelDy": -24
+    },
+    {
+      "id": "authn-validation",
+      "from": "authn",
+      "to": "validation",
+      "label": "CheckPassword",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "labelDy": 28
+    },
+    {
+      "id": "authn-refresh",
+      "from": "authn",
+      "to": "refresh",
+      "label": "Create/Rotate",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "labelDy": 36
+    },
+    {
+      "id": "refresh-domain",
+      "from": "refresh",
+      "to": "domain",
+      "label": "RefreshSession",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "labelDy": 20
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Camino principal",
+      "items": [
+        "bootstrap cablea Authn + Authz con el mismo TokenManager",
+        "Refresh JWT solo sale después de Create/Rotate en el store"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Límites",
+      "items": [
+        "Sin HTTP server ni DB en la librería; adapters viven en el servicio",
+        "AuthorizeJWT usa ParseAccess + UserReader tras el wiring de bootstrap"
+      ]
+    }
+  ]
+}
