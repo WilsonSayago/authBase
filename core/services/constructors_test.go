@@ -48,21 +48,21 @@ type fakeRolePort struct {
 	name string
 }
 
-func (p *fakeRolePort) FindById(id string) (domain.Role, error) {
+func (p *fakeRolePort) FindById(ctx context.Context, id string) (domain.Role, error) {
 	return domain.Role{Base: domain.Base{Id: id}, Name: p.name}, nil
 }
 
-func (p *fakeRolePort) FindAll(int, int) ([]domain.Role, int, error) {
+func (p *fakeRolePort) FindAll(context.Context, int, int) ([]domain.Role, int, error) {
 	return nil, 0, nil
 }
 
-func (p *fakeRolePort) Save(role domain.Role) (domain.Role, error) {
+func (p *fakeRolePort) Save(ctx context.Context, role domain.Role) (domain.Role, error) {
 	return role, nil
 }
 
-func (p *fakeRolePort) Update(domain.Role) error { return nil }
+func (p *fakeRolePort) Update(context.Context, domain.Role) error { return nil }
 
-func (p *fakeRolePort) ChangeStatus(string) error { return nil }
+func (p *fakeRolePort) SetActive(context.Context, string, bool) error { return nil }
 
 type stubContext struct{}
 

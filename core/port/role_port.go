@@ -1,11 +1,15 @@
 package port
 
-import "github.com/WilsonSayago/authBase/v3/core/domain"
+import (
+	"context"
+
+	"github.com/WilsonSayago/authBase/v3/core/domain"
+)
 
 type RolePort interface {
-	FindById(id string) (domain.Role, error)
-	FindAll(pageSize, offset int) ([]domain.Role, int, error)
-	Save(role domain.Role) (domain.Role, error)
-	Update(role domain.Role) error
-	ChangeStatus(id string) error
+	FindById(ctx context.Context, id string) (domain.Role, error)
+	FindAll(ctx context.Context, pageSize, offset int) ([]domain.Role, int, error)
+	Save(ctx context.Context, role domain.Role) (domain.Role, error)
+	Update(ctx context.Context, role domain.Role) error
+	SetActive(ctx context.Context, id string, active bool) error
 }

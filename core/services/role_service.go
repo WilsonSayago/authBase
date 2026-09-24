@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+
 	"github.com/WilsonSayago/authBase/v3/core"
 	"github.com/WilsonSayago/authBase/v3/core/domain"
 	"github.com/WilsonSayago/authBase/v3/core/port"
@@ -16,22 +18,22 @@ func GetRoleServiceInstance(port port.RolePort) core.RoleUseCase {
 	}
 }
 
-func (r *RoleService) GetRoleById(id string) (domain.Role, error) {
-	return r.port.FindById(id)
+func (r *RoleService) GetRoleById(ctx context.Context, id string) (domain.Role, error) {
+	return r.port.FindById(ctx, id)
 }
 
-func (r *RoleService) GetRoles(pageSize, offset int) ([]domain.Role, int, error) {
-	return r.port.FindAll(pageSize, offset)
+func (r *RoleService) GetRoles(ctx context.Context, pageSize, offset int) ([]domain.Role, int, error) {
+	return r.port.FindAll(ctx, pageSize, offset)
 }
 
-func (r *RoleService) CreateRole(role domain.Role) (domain.Role, error) {
-	return r.port.Save(role)
+func (r *RoleService) CreateRole(ctx context.Context, role domain.Role) (domain.Role, error) {
+	return r.port.Save(ctx, role)
 }
 
-func (r *RoleService) UpdateRole(role domain.Role) error {
-	return r.port.Update(role)
+func (r *RoleService) UpdateRole(ctx context.Context, role domain.Role) error {
+	return r.port.Update(ctx, role)
 }
 
-func (r *RoleService) ChangeStatus(id string) error {
-	return r.port.ChangeStatus(id)
+func (r *RoleService) SetActive(ctx context.Context, id string, active bool) error {
+	return r.port.SetActive(ctx, id, active)
 }

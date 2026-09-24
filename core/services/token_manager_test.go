@@ -303,7 +303,6 @@ func TestTokenFamilyRotatedPairsShareFamily(t *testing.T) {
 	}
 }
 
-
 func TestNewTokenManagerRejectsInvalidConfig(t *testing.T) {
 	t.Parallel()
 
