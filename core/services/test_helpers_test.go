@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WilsonSayago/authBase/v3/core"
-	domain "github.com/WilsonSayago/authBase/v3/core/domain"
-	"github.com/WilsonSayago/authBase/v3/core/port"
+	"github.com/WilsonSayago/authBase/v4/core"
+	domain "github.com/WilsonSayago/authBase/v4/core/domain"
+	"github.com/WilsonSayago/authBase/v4/core/port"
 )
 
 type fakeUser struct {

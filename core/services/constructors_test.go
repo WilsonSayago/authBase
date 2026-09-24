@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/WilsonSayago/authBase/v3/core"
-	"github.com/WilsonSayago/authBase/v3/core/domain"
-	"github.com/WilsonSayago/authBase/v3/core/port"
-	"github.com/WilsonSayago/authBase/v3/infra/config/properties"
+	"github.com/WilsonSayago/authBase/v4/core"
+	"github.com/WilsonSayago/authBase/v4/core/domain"
+	"github.com/WilsonSayago/authBase/v4/core/port"
+	"github.com/WilsonSayago/authBase/v4/infra/config/properties"
 )
 
 type otherFakeUser struct {
@@ -52,8 +52,8 @@ func (p *fakeRolePort) FindById(ctx context.Context, id string) (domain.Role, er
 	return domain.Role{Base: domain.Base{Id: id}, Name: p.name}, nil
 }
 
-func (p *fakeRolePort) FindAll(context.Context, int, int) ([]domain.Role, int, error) {
-	return nil, 0, nil
+func (p *fakeRolePort) FindAll(context.Context, domain.PageRequest) (domain.Page[domain.Role], error) {
+	return domain.Page[domain.Role]{}, nil
 }
 
 func (p *fakeRolePort) Save(ctx context.Context, role domain.Role) (domain.Role, error) {

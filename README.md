@@ -18,7 +18,7 @@ store. Applications provide ports (`UserReader`, `CredentialReader`,
 ## Install (after a v3 tag exists)
 
 ```sh
-go get github.com/WilsonSayago/authBase/v3@v3.0.0
+go get github.com/WilsonSayago/authBase/v4@v4.0.0
 ```
 
 Until a release tag is published, depend on a commit or a local `replace`. Do
@@ -27,8 +27,8 @@ module proxy.
 
 ```go
 import (
-    "github.com/WilsonSayago/authBase/v3/core/services"
-    "github.com/WilsonSayago/authBase/v3/infra/config/properties"
+    "github.com/WilsonSayago/authBase/v4/core/services"
+    "github.com/WilsonSayago/authBase/v4/infra/config/properties"
 )
 ```
 
@@ -75,7 +75,7 @@ Do not distinguish failure reasons to clients for login/refresh.
 ## Compatibility
 
 v3 is a **breaking** major. Pre-v3 tokens, singleton constructors, and module
-path `github.com/WilsonSayago/authBase` (without `/v3`) are not supported.
+path `github.com/WilsonSayago/authBase` (without `/v4`) are not supported.
 Migration steps: [`docs/MIGRATION_V3.md`](docs/MIGRATION_V3.md).
 
 ## Verify
@@ -104,6 +104,6 @@ MIT — see [`LICENSE`](LICENSE).
 
 ## Release status
 
-Module path `/v3`, MIT license, and private reporting via GitHub Security
+Module path `/v4`, MIT license, and private reporting via GitHub Security
 Advisories are in place. Publishing the `v3.0.0` tag remains a separate manual
 step — follow [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).

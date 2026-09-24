@@ -8,6 +8,18 @@ and this project intends to follow
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-09-24
+
+### Added
+
+- Generic keyset pagination types: `CursorKey`, `PageRequest`, and `Page[T]`.
+
+### Changed
+
+- Module path is now `github.com/WilsonSayago/authBase/v4`.
+- `RolePort.FindAll` and `RoleUseCase.GetRoles` now use keyset pagination
+  instead of page size, offset, and exact totals.
+
 ## [3.0.1] - 2026-09-24
 
 Patch release so Go module consumers can pin the post-`v3.0.0` API. The
@@ -53,6 +65,7 @@ First published `/v3` module (immutable in the Go module proxy).
 - `golang.org/x/crypto v0.57.0`.
 - Toolchain directive `go1.27.1` with minimum language `go 1.26.0`.
 
-[Unreleased]: https://github.com/WilsonSayago/authBase/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/WilsonSayago/authBase/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/WilsonSayago/authBase/releases/tag/v4.0.0
 [3.0.1]: https://github.com/WilsonSayago/authBase/releases/tag/v3.0.1
 [3.0.0]: https://github.com/WilsonSayago/authBase/releases/tag/v3.0.0

@@ -45,7 +45,7 @@ See the compilable example at [`examples/quickstart`](../examples/quickstart).
 ## Dependency direction
 
 ```text
-  cmd / bootstrap  →  authBase/v3 (services, properties)
+  cmd / bootstrap  →  authBase/v4 (services, properties)
          ↓
     app adapters implement core/port
          ↓
@@ -74,7 +74,7 @@ Index and regenerate notes: [diagrams/README.md](diagrams/README.md).
 
 ## Versioning
 
-- **v3.x** — module path `github.com/WilsonSayago/authBase/v3` (required by Go for
+- **v4.x** — module path `github.com/WilsonSayago/authBase/v4` (required by Go for
   major ≥ 2). Pre-v3 tokens and singleton constructors are not supported.
 - Migration: [MIGRATION_V3.md](MIGRATION_V3.md).
 - Publish gates: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).

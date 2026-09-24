@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 
-	"github.com/WilsonSayago/authBase/v3/core"
-	"github.com/WilsonSayago/authBase/v3/core/domain"
-	"github.com/WilsonSayago/authBase/v3/core/port"
+	"github.com/WilsonSayago/authBase/v4/core"
+	"github.com/WilsonSayago/authBase/v4/core/domain"
+	"github.com/WilsonSayago/authBase/v4/core/port"
 )
 
 type RoleService struct {
@@ -22,8 +22,8 @@ func (r *RoleService) GetRoleById(ctx context.Context, id string) (domain.Role, 
 	return r.port.FindById(ctx, id)
 }
 
-func (r *RoleService) GetRoles(ctx context.Context, pageSize, offset int) ([]domain.Role, int, error) {
-	return r.port.FindAll(ctx, pageSize, offset)
+func (r *RoleService) GetRoles(ctx context.Context, request domain.PageRequest) (domain.Page[domain.Role], error) {
+	return r.port.FindAll(ctx, request)
 }
 
 func (r *RoleService) CreateRole(ctx context.Context, role domain.Role) (domain.Role, error) {

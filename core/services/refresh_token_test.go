@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WilsonSayago/authBase/v3/core"
-	"github.com/WilsonSayago/authBase/v3/core/domain"
+	"github.com/WilsonSayago/authBase/v4/core"
+	"github.com/WilsonSayago/authBase/v4/core/domain"
 )
 
 func TestRefreshTokenRotatesAndPreservesFamily(t *testing.T) {

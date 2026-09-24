@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/WilsonSayago/authBase/v3/core"
-	"github.com/WilsonSayago/authBase/v3/core/domain"
-	"github.com/WilsonSayago/authBase/v3/core/services"
-	"github.com/WilsonSayago/authBase/v3/infra/config/properties"
-	"github.com/WilsonSayago/authBase/v3/infra/secundary"
+	"github.com/WilsonSayago/authBase/v4/core"
+	"github.com/WilsonSayago/authBase/v4/core/domain"
+	"github.com/WilsonSayago/authBase/v4/core/services"
+	"github.com/WilsonSayago/authBase/v4/infra/config/properties"
+	"github.com/WilsonSayago/authBase/v4/infra/secundary"
 )
 
 func TestQuickstartLoginRefreshAuthorize(t *testing.T) {

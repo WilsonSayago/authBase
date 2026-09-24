@@ -1,7 +1,7 @@
 package secundary
 
 import (
-	"github.com/WilsonSayago/authBase/v3/core/port"
+	"github.com/WilsonSayago/authBase/v4/core/port"
 	"golang.org/x/crypto/bcrypt"
 )
 

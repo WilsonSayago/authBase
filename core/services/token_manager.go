@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/WilsonSayago/authBase/v3/core/domain"
-	"github.com/WilsonSayago/authBase/v3/infra/config/properties"
+	"github.com/WilsonSayago/authBase/v4/core/domain"
+	"github.com/WilsonSayago/authBase/v4/infra/config/properties"
 	"github.com/golang-jwt/jwt/v5"
 )
 
