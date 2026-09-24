@@ -8,6 +8,27 @@ and this project intends to follow
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-09-24
+
+Patch release so Go module consumers can pin the post-`v3.0.0` API. The
+GitHub `v3.0.0` tag was moved after the module proxy recorded the original
+tree; **do not retag `v3.0.0`**. Depend on `v3.0.1` (or newer) for the
+surface below.
+
+### Changed
+
+- `RolePort` / `RoleUseCase` take `context.Context` on every method.
+- Replaced toggle-style `ChangeStatus` with explicit `SetActive(ctx, id, active)`.
+
+### Documentation
+
+- Architecture guide and Archify diagrams under `docs/`.
+- Removed completed implementation `plans/` backlog.
+
+## [3.0.0] - 2026-09-18
+
+First published `/v3` module (immutable in the Go module proxy).
+
 ### Added
 
 - Module path `github.com/WilsonSayago/authBase/v3`.
@@ -32,11 +53,6 @@ and this project intends to follow
 - `golang.org/x/crypto v0.57.0`.
 - Toolchain directive `go1.27.1` with minimum language `go 1.26.0`.
 
-## [3.0.0] - Unreleased
-
-Prepared breaking major for a valid Go module path. **Not published yet** —
-no date, no tag. Publish only after [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)
-is fully satisfied (CI green), then publish manually.
-
-[Unreleased]: https://github.com/WilsonSayago/authBase/compare/HEAD...HEAD
+[Unreleased]: https://github.com/WilsonSayago/authBase/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/WilsonSayago/authBase/releases/tag/v3.0.1
 [3.0.0]: https://github.com/WilsonSayago/authBase/releases/tag/v3.0.0
