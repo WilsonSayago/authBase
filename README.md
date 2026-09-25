@@ -21,7 +21,7 @@ explicitly.
 Install the published v4 release:
 
 ```sh
-go get github.com/WilsonSayago/authBase/v4@v4.0.1
+go get github.com/WilsonSayago/authBase/v4@v4.1.0
 ```
 
 Pin an explicit `v4.x.y` tag instead of tracking `main`.
@@ -133,7 +133,7 @@ MIT — see [`LICENSE`](LICENSE).
 
 ## Release status
 
-`v4.0.1` is published on the canonical remote and resolves through the public
-Go module proxy. The external-consumer smoke test verifies the cached module
-without a workspace or `replace`; see
+`v4.1.0` is prepared for publication on the canonical remote. After publication,
+the external-consumer smoke test verifies the cached module without a workspace
+or `replace`; see
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
