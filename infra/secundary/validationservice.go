@@ -1,6 +1,8 @@
 package secundary
 
 import (
+	"strings"
+
 	"github.com/WilsonSayago/authBase/v4/core/port"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -12,14 +14,21 @@ func NewValidationService() port.ValidationPort {
 }
 
 func (v *ValidationService) HashPassword(password string) (string, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hashedPassword), nil
+	return hashArgon2id(password)
 }
 
 func (v *ValidationService) CheckPassword(hashedPassword, password string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
-	return err == nil
+	switch {
+	case strings.HasPrefix(hashedPassword, "$argon2id$"):
+		return verifyArgon2id(hashedPassword, password)
+	case strings.HasPrefix(hashedPassword, "$2a$"),
+		strings.HasPrefix(hashedPassword, "$2b$"),
+		strings.HasPrefix(hashedPassword, "$2y$"):
+		if len(password) > 72 {
+			return false
+		}
+		return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)) == nil
+	default:
+		return false
+	}
 }
