@@ -57,6 +57,16 @@ the stable datastore ordering.
 
 See [`docs/MIGRATION_V4.md`](docs/MIGRATION_V4.md) for the v3 → v4 API change.
 
+## Session lifecycle capabilities
+
+`AuthenticationService.EstablishSession` is the privileged issuance boundary
+for callers that already authenticated a user. It verifies the active identity
+and persists the refresh session before returning tokens.
+
+Refresh stores may implement the additive `port.UserSessionRevoker` and
+`port.ExpiredSessionPurger` capabilities. Existing v4 implementations of
+`port.RefreshTokenStore` remain source compatible.
+
 ## Threat model (summary)
 
 - **Bearer access tokens**: short-lived; middleware returns 401 on missing,
@@ -67,8 +77,9 @@ See [`docs/MIGRATION_V4.md`](docs/MIGRATION_V4.md) for the v3 → v4 API change.
   bytes; never log tokens, password hashes, or raw secrets.
 - **Credentials**: password material lives only in `CredentialRecord`, not on
   `IUserGeneric`.
-- **Revocation**: call `RevokeRefreshFamily` on logout/compromise; access tokens
-  remain valid until expiry unless you add an extra denylist outside authBase.
+- **Revocation**: call `RevokeRefreshFamily` for one family or
+  `RevokeUserSessions` for account-wide compromise; access tokens remain valid
+  until expiry unless you add an extra denylist outside authBase.
 
 ## Errors and HTTP status
 

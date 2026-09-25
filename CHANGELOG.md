@@ -8,6 +8,18 @@ and this project intends to follow
 
 ## [Unreleased]
 
+### Added
+
+- Additive `SessionIssuer`, `SessionManager`, `UserSessionRevoker`, and
+  `ExpiredSessionPurger` contracts for user-wide session lifecycle management.
+- `AuthenticationService.EstablishSession` for already-authenticated active
+  identities and `RevokeUserSessions` for optional store-backed revocation.
+
+### Changed
+
+- Login and privileged session establishment now share one persist-before-return
+  issuance path without changing the v4 baseline interfaces.
+
 ### Fixed
 
 - Complete the temporary consumer's transitive checksums before compiling the

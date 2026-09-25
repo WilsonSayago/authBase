@@ -45,6 +45,19 @@ Detecting `ErrRefreshConsumed` is a replay signal: authBase will call
 
 `RevokeFamily` marks every session in the family unusable for future rotates.
 
+## Optional lifecycle capabilities
+
+Existing v4 stores only need to implement `RefreshTokenStore`. Stores may
+additionally implement:
+
+- `port.UserSessionRevoker` to revoke every refresh family owned by one user;
+- `port.ExpiredSessionPurger` to delete sessions older than an
+  application-selected retention cutoff.
+
+`AuthenticationService.RevokeUserSessions` returns
+`core.ErrUserSessionRevocationUnsupported` when the configured store does not
+provide user-wide revocation. This is never treated as a successful no-op.
+
 ## Retention
 
 Expired and consumed sessions may be purged by the adapter on its own schedule.
@@ -57,6 +70,11 @@ Only `AuthenticationService` mints refresh token pairs for callers. It always
 `Create`s or `Rotate`s the session in `RefreshTokenStore` before returning
 tokens. `TokenManager` pair issuance is unexported so adapters cannot return
 refresh JWTs that were never registered.
+
+`EstablishSession` is a privileged boundary for callers that already
+authenticated an identity through another mechanism. It still loads the user,
+requires an active identity, and persists the refresh session before returning
+either token.
 
 ## Non-goals
 

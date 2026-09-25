@@ -10,9 +10,9 @@ applications provide ports and wire constructors explicitly.
 |---------|-------------|--------|
 | Domain models | `core/domain` | `IUserGeneric`, roles, permissions, `RefreshSession`, `HashRefreshToken` |
 | Pagination contracts | `core/domain` | `CursorKey`, `PageRequest`, `Page[T]` for forward-only keyset pagination |
-| Use-case contracts | `core` | `AuthenticationUseCase`, `AuthorizationUseCase`, `Context`, sentinel errors |
-| Ports | `core/port` | `UserReader`, `CredentialReader`, `RefreshTokenStore`, `ValidationPort`, `RolePort` |
-| Authentication | `services.NewAuthenticationService` | Login, refresh rotation, validate, revoke family |
+| Use-case contracts | `core` | `AuthenticationUseCase`, additive `SessionIssuer` / `SessionManager`, `AuthorizationUseCase`, `Context`, sentinel errors |
+| Ports | `core/port` | `UserReader`, `CredentialReader`, `RefreshTokenStore`, optional session lifecycle capabilities, `ValidationPort`, `RolePort` |
+| Authentication | `services.NewAuthenticationService` | Login, privileged session establishment, refresh rotation, validate, revoke |
 | Authorization | `services.NewAuthorization` | Panic-safe `AuthorizeJWT` + `PoliciesGuard` |
 | JWT | `services.NewTokenManager`, `properties.Jwt` | Typed claims; refresh minting unexported |
 | Password hashing | `infra/secundary.ValidationService` | bcrypt adapter for `ValidationPort` |
@@ -40,6 +40,7 @@ cmd / bootstrap
     ├── roles := services.GetRoleServiceInstance(rolePort)
     ├── POST /login    → authn.Login
     ├── POST /refresh  → authn.RefreshToken
+    ├── trusted auth flow → authn.EstablishSession
     ├── GET /roles      → roles.GetRoles(ctx, PageRequest)
     └── protected routes → authz.AuthorizeJWT() → PoliciesGuard(…)
 ```
@@ -63,6 +64,10 @@ HTTP adapters, and infrastructure wiring may depend on it.
 session (`Create` / `Rotate`) before returning tokens. `TokenManager` verifies
 access/refresh JWTs; pair helpers are unexported so callers cannot mint
 unregister refresh tokens.
+
+User-wide revocation and expiry cleanup are optional adapter capabilities kept
+separate from `RefreshTokenStore`; v4 stores remain source compatible while
+applications can opt into `RevokeUserSessions` and retention-aware cleanup.
 
 ## Diagrams
 
