@@ -1,0 +1,6 @@
+# Gitleaks configuration for authBase.
+# Keep exclusions narrow: documentation and examples are scanned.
+title = "authBase"
+
+[extend]
+useDefault = true

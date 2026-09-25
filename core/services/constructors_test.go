@@ -44,7 +44,6 @@ func (otherIdentityStore) FindByID(ctx context.Context, id string) (otherFakeUse
 }
 
 type fakeRolePort struct {
-	mu   sync.Mutex
 	name string
 }
 

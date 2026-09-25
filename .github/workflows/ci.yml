@@ -1,47 +1,57 @@
-name: CI
+# CI quality gate for authBase.
+name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
 
-jobs:
-  test:
-    name: Test (Go ${{ matrix.go }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        go:
-          - "1.26.8"
-          - "1.27.1"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+jobs:
+  compatibility:
+    name: compatibility (go-min)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+      GOTOOLCHAIN: local
+    steps:
+      # actions/checkout@v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      # actions/setup-go@v7.0.0
+      - name: Set up Go 1.26.8
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
-          go-version: ${{ matrix.go }}
+          go-version: "1.26.8"
           cache: true
 
-      - name: Test
-        run: go test ./...
+      - name: Verify minimum Go compatibility
+        run: make fmt-check mod-verify vet test quickstart
 
-      - name: Build examples
-        run: go build -o "${RUNNER_TEMP}/authbase-quickstart" ./examples/quickstart
+  verify:
+    name: verify (go-preferred)
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+      GOTOOLCHAIN: local
+    steps:
+      # actions/checkout@v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - name: Test (race)
-        if: matrix.go == '1.27.1'
-        run: go test -race ./...
+      # actions/setup-go@v7.0.0
+      - name: Set up Go 1.27.1
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: "1.27.1"
+          cache: true
 
-      - name: Vet
-        run: go vet ./...
-
-      - name: Vulnerability check
-        if: matrix.go == '1.27.1'
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      - name: Verify
+        run: make verify

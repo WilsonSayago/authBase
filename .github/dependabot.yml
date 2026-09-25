@@ -1,0 +1,27 @@
+# Conservative weekly dependency updates for authBase.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      go-patch:
+        applies-to: version-updates
+        update-types:
+          - patch
+    labels:
+      - dependencies
+      - go
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - github-actions

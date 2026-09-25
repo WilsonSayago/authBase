@@ -1,0 +1,7 @@
+# Local tool downloads and generated outputs.
+.tmp/
+coverage.out
+
+# Optional Go workspace files must not affect module verification.
+go.work
+go.work.sum
