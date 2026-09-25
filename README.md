@@ -76,7 +76,8 @@ Refresh stores may implement the additive `port.UserSessionRevoker` and
 - **Secrets**: access and refresh signing keys must differ and be at least 32
   bytes; never log tokens, password hashes, or raw secrets.
 - **Credentials**: password material lives only in `CredentialRecord`, not on
-  `IUserGeneric`.
+  `IUserGeneric`; new hashes use Argon2id PHC while bcrypt remains verify-only
+  for legacy rows.
 - **Revocation**: call `RevokeRefreshFamily` for one family or
   `RevokeUserSessions` for account-wide compromise; access tokens remain valid
   until expiry unless you add an extra denylist outside authBase.

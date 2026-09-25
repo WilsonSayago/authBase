@@ -15,7 +15,7 @@ applications provide ports and wire constructors explicitly.
 | Authentication | `services.NewAuthenticationService` | Login, privileged session establishment, refresh rotation, validate, revoke |
 | Authorization | `services.NewAuthorization` | Panic-safe `AuthorizeJWT` + `PoliciesGuard` |
 | JWT | `services.NewTokenManager`, `properties.Jwt` | Typed claims; refresh minting unexported |
-| Password hashing | `infra/secundary.ValidationService` | bcrypt adapter for `ValidationPort` |
+| Password hashing | `infra/secundary.ValidationService` | Argon2id PHC for new hashes; bcrypt legacy verification |
 | Role operations | `services.RoleService` | Context-aware CRUD, `SetActive`, paginated `GetRoles` |
 
 ## What belongs in each microservice

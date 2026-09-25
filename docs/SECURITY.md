@@ -42,3 +42,20 @@ token `jti`, error sentinel names, HTTP status.
 - Make `Rotate` atomic; on `ErrRefreshConsumed`, revoke the family.
 - Keep access tokens short-lived; treat refresh as the session boundary.
 - Validate JWT config via `properties.Jwt.Validate()` at process start.
+
+## Password hashing
+
+`ValidationService.HashPassword` emits Argon2id PHC strings with explicit
+parameters: 19 MiB memory, 2 iterations, parallelism 1, a 16-byte random salt,
+and a 32-byte derived key. Password input is defensively capped at 1024 bytes.
+Recalibrate these parameters on production hardware and review them annually.
+
+`CheckPassword` also verifies existing bcrypt hashes so stored credentials can
+migrate naturally on a later password change. It does not claim that legacy
+rows have already been rehashed. Unknown, malformed, or excessive Argon2id PHC
+parameters fail closed before expensive allocation.
+
+Authentication constructs one dummy credential hash per service instance.
+Missing, inactive, incorrect, and successful credential paths each execute one
+password verification; do not replace this with sleeps or account-specific
+error messages.

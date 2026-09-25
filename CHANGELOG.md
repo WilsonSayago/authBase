@@ -8,6 +8,18 @@ and this project intends to follow
 
 ## [Unreleased]
 
+### Security
+
+- Equalized password-verification work for missing, inactive, incorrect, and
+  successful login outcomes while preserving generic credential errors.
+- New password hashes use bounded Argon2id PHC parameters with random salts;
+  legacy bcrypt hashes remain verifiable.
+
+### Changed
+
+- Password hashing accepts passphrases beyond bcrypt's 72-byte limit up to a
+  documented defensive 1024-byte adapter bound.
+
 ## [4.1.0] - 2026-09-25
 
 ### Added
