@@ -8,6 +8,13 @@ and this project intends to follow
 
 ## [Unreleased]
 
+### Build
+
+- Added a reproducible `make verify` gate with pinned analysis, vulnerability,
+  module-integrity, quickstart, race, and secret-scanning checks.
+- Added weekly Go module and GitHub Actions dependency updates.
+- Added a public-proxy consumer smoke test that rejects workspace replacements.
+
 ## [4.0.0] - 2026-09-24
 
 ### Added

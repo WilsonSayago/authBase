@@ -96,11 +96,14 @@ when signing configuration remains the same.
 ## Verify
 
 ```sh
-env GOCACHE=/private/tmp/authbase-go-cache GOWORK=off go test ./...
-env GOCACHE=/private/tmp/authbase-go-cache GOWORK=off go test -race ./...
-env GOCACHE=/private/tmp/authbase-go-cache GOWORK=off go vet ./...
-env GOCACHE=/private/tmp/authbase-go-cache GOWORK=off GOTOOLCHAIN=go1.27.1 \
-  go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+GOWORK=off make verify
+```
+
+After a release is visible through the public Go proxy, verify it from an
+isolated temporary consumer with no workspace or `replace` directive:
+
+```sh
+GOWORK=off make consumer-published AUTHBASE_VERSION=v4.0.0
 ```
 
 ## Docs

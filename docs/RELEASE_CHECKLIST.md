@@ -22,13 +22,11 @@ item below is checked by a human maintainer.
 ## Quality gates
 
 - [ ] CI green on Go 1.26.8 and 1.27.1.
-- [ ] `go test ./...`
-- [ ] `go test -race ./...`
-- [ ] `go vet ./...`
-- [ ] `govulncheck@v1.8.0 ./...` → no reachable vulnerabilities.
-- [ ] `go build ./examples/...` and `go test ./examples/...` pass.
-- [ ] External consumer module with
-      `replace github.com/WilsonSayago/authBase/v4 => <local>` builds.
+- [ ] `GOWORK=off make verify` passes, including tests, race, vet,
+      golangci-lint, govulncheck, module checksums, quickstart, and Gitleaks.
+- [ ] External consumer module resolves the release through the public Go
+      proxy with no `replace` directive:
+      `GOWORK=off make consumer-published AUTHBASE_VERSION=v4.x.y`.
 - [ ] `git diff --check` clean.
 - [ ] Manual review of `docs/MIGRATION_V4.md` and retained v3 guidance.
 
@@ -38,4 +36,5 @@ item below is checked by a human maintainer.
 - [ ] Annotated `v4.x.y` tag created locally after checklist completion.
 - [ ] Tag pushed explicitly; never move or reuse the tag.
 - [ ] CHANGELOG date filled for the release.
-- [ ] Proxy/`go list -m github.com/WilsonSayago/authBase/v4@v4.x.y` verified.
+- [ ] `GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org
+      go list -m github.com/WilsonSayago/authBase/v4@v4.x.y` verified.
