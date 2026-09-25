@@ -83,14 +83,39 @@ func (a AuthenticationService[T]) Login(ctx context.Context, username, password 
 		return "", "", core.ErrInvalidCredentials
 	}
 
-	issued, err := a.tokens.issueInitialPair(cred.UserID)
+	return a.issueAndPersist(ctx, cred.UserID)
+}
+
+// EstablishSession creates a persisted token session for an identity that the
+// caller has already authenticated. This privileged boundary always verifies
+// that the identity still exists and is active before issuing tokens.
+func (a AuthenticationService[T]) EstablishSession(ctx context.Context, userID string) (string, string, error) {
+	if userID == "" {
+		return "", "", fmt.Errorf("user id must not be empty")
+	}
+	user, err := a.requireActiveUser(ctx, userID)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate token: %w", err)
+		return "", "", err
 	}
-	if err := a.refreshStore.Create(ctx, issued.Session); err != nil {
-		return "", "", fmt.Errorf("persist refresh session: %w", err)
+	return a.issueAndPersist(ctx, user.GetId())
+}
+
+// RevokeUserSessions invalidates every refresh session owned by a user.
+func (a AuthenticationService[T]) RevokeUserSessions(ctx context.Context, userID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	return issued.AccessToken, issued.RefreshToken, nil
+	if userID == "" {
+		return fmt.Errorf("user id must not be empty")
+	}
+	revoker, ok := a.refreshStore.(port.UserSessionRevoker)
+	if !ok {
+		return core.ErrUserSessionRevocationUnsupported
+	}
+	if err := revoker.RevokeUser(ctx, userID); err != nil {
+		return fmt.Errorf("revoke user sessions: %w", err)
+	}
+	return nil
 }
 
 func (a AuthenticationService[T]) RefreshToken(ctx context.Context, refreshToken string) (string, string, error) {
@@ -147,6 +172,20 @@ func (a AuthenticationService[T]) ValidateToken(ctx context.Context, tokenString
 		return nil, err
 	}
 	return user, nil
+}
+
+func (a AuthenticationService[T]) issueAndPersist(ctx context.Context, userID string) (string, string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", "", err
+	}
+	issued, err := a.tokens.issueInitialPair(userID)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate token: %w", err)
+	}
+	if err := a.refreshStore.Create(ctx, issued.Session); err != nil {
+		return "", "", fmt.Errorf("persist refresh session: %w", err)
+	}
+	return issued.AccessToken, issued.RefreshToken, nil
 }
 
 func (a AuthenticationService[T]) requireActiveUser(ctx context.Context, id string) (T, error) {

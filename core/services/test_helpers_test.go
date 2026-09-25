@@ -153,6 +153,7 @@ var (
 	_ port.CredentialReader     = (*fakeIdentityStore)(nil)
 	_ port.UserReader[fakeUser] = (*fakeIdentityStore)(nil)
 	_ port.RefreshTokenStore    = (*fakeRefreshStore)(nil)
+	_ port.UserSessionRevoker   = (*fakeRefreshStore)(nil)
 )
 
 // mustIssuePair mints an unpersisted access/refresh pair for unit tests only.
@@ -174,9 +175,11 @@ type fakeRefreshStore struct {
 	createN         int
 	rotateN         int
 	revokeN         int
+	revokeUserN     int
 	errCreate       error
 	errRotate       error
 	errRevoke       error
+	errRevokeUser   error
 	now             func() time.Time
 }
 
@@ -260,5 +263,23 @@ func (s *fakeRefreshStore) RevokeFamily(ctx context.Context, familyID string) er
 		return s.errRevoke
 	}
 	s.revokedFamilies[familyID] = struct{}{}
+	return nil
+}
+
+func (s *fakeRefreshStore) RevokeUser(ctx context.Context, userID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.revokeUserN++
+	if s.errRevokeUser != nil {
+		return s.errRevokeUser
+	}
+	for _, session := range s.byHash {
+		if session.UserID == userID {
+			s.revokedFamilies[session.FamilyID] = struct{}{}
+		}
+	}
 	return nil
 }

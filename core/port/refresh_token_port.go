@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"time"
 
 	"github.com/WilsonSayago/authBase/v4/core/domain"
 )
@@ -14,4 +15,17 @@ type RefreshTokenStore interface {
 	// one transaction. Concurrent callers: exactly one succeeds.
 	Rotate(ctx context.Context, currentHash [32]byte, next domain.RefreshSession) error
 	RevokeFamily(ctx context.Context, familyID string) error
+}
+
+// UserSessionRevoker is an optional refresh-store capability for revoking all
+// sessions owned by one user. It remains separate from RefreshTokenStore so
+// existing v4 adapters keep source compatibility.
+type UserSessionRevoker interface {
+	RevokeUser(ctx context.Context, userID string) error
+}
+
+// ExpiredSessionPurger is an optional refresh-store capability for deleting
+// sessions that expired before a caller-selected retention cutoff.
+type ExpiredSessionPurger interface {
+	PurgeExpired(ctx context.Context, before time.Time) (int64, error)
 }

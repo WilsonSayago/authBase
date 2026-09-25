@@ -30,4 +30,8 @@ var (
 	// ErrInvalidRefresh is the public refresh failure. Callers must not
 	// distinguish not-found, consumed, revoked, or parse failures.
 	ErrInvalidRefresh = errors.New("invalid refresh token")
+
+	// ErrUserSessionRevocationUnsupported means the configured refresh store
+	// implements the v4 baseline but not user-wide session revocation.
+	ErrUserSessionRevocationUnsupported = errors.New("user session revocation unsupported")
 )
