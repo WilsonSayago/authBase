@@ -14,8 +14,8 @@
       {
         "id": "refresh-path",
         "label": "Refresh",
-        "focus": ["refresh_in", "rotate", "new_pair"],
-        "note": "ParseRefresh + usuario activo + Rotate atómico en la misma familia."
+        "focus": ["refresh_in", "prepare", "rotate", "new_pair"],
+        "note": "Authn valida y emite el siguiente par; el store solo ejecuta Rotate atómico."
       },
       {
         "id": "replay",
@@ -93,11 +93,20 @@
       "width": 128
     },
     {
+      "id": "prepare",
+      "lane": "authn",
+      "col": 4,
+      "type": "backend",
+      "label": "Parse + issueRotated",
+      "sublabel": "usuario activo",
+      "width": 144
+    },
+    {
       "id": "rotate",
       "lane": "store",
       "col": 4,
       "type": "database",
-      "label": "Parse + Rotate",
+      "label": "Rotate",
       "sublabel": "atómico",
       "width": 128
     },
@@ -136,7 +145,8 @@
     { "id": "e-issue-create", "from": "issue", "to": "create", "label": "session" },
     { "id": "e-create-pair", "from": "create", "to": "pair", "variant": "emphasis" },
     { "id": "e-later", "from": "pair", "to": "refresh_in", "label": "luego", "variant": "dashed", "role": "branch" },
-    { "id": "e-rotate", "from": "refresh_in", "to": "rotate", "variant": "emphasis" },
+    { "id": "e-prepare", "from": "refresh_in", "to": "prepare", "variant": "emphasis" },
+    { "id": "e-rotate", "from": "prepare", "to": "rotate", "label": "next session", "variant": "emphasis" },
     { "id": "e-new", "from": "rotate", "to": "new_pair", "label": "ok", "role": "return" },
     {
       "id": "e-replay",
@@ -154,7 +164,7 @@
       "title": "Camino principal",
       "items": [
         "Login colapsa fallos a ErrInvalidCredentials; Create precede al return",
-        "Refresh rota en la misma family_id y emite un nuevo par"
+        "Authn emite en la misma family_id; el store persiste con Rotate"
       ]
     },
     {

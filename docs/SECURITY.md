@@ -2,10 +2,12 @@
 
 ## Supported versions
 
-Only the upcoming **v3** line is intended for new integrations. Historical
-`v1`/`v2` tags are not a supported security baseline for this module path.
+Only the **v4** line is intended for new integrations. Historical `v1`/`v2`
+tags and the superseded `v3` API are not a supported security baseline for new
+deployments.
 
-Support details will be restated when a release tag is published.
+Security fixes target the current major line. Once v4 tags are published,
+consumers should track the latest `v4.x` release rather than `main`.
 
 ## Reporting a vulnerability
 

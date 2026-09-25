@@ -5,7 +5,8 @@ tokens, active-identity checks, and panic-safe HTTP middleware adapters.
 
 authBase does **not** ship HTTP servers, databases, or a production refresh-token
 store. Applications provide ports (`UserReader`, `CredentialReader`,
-`RefreshTokenStore`, `ValidationPort`) and wire constructors explicitly.
+`RefreshTokenStore`, `ValidationPort`, `RolePort`) and wire constructors
+explicitly.
 
 ## Go versions
 
@@ -15,15 +16,16 @@ store. Applications provide ports (`UserReader`, `CredentialReader`,
 | Recommended toolchain | go1.27.1 |
 | CI matrix | 1.26.8, 1.27.1 |
 
-## Install (after a v3 tag exists)
+## Install
+
+Until the `v4.0.0` tag is pushed to the canonical remote and visible through
+the Go module proxy, test the current v4 line from `main`:
 
 ```sh
-go get github.com/WilsonSayago/authBase/v4@v4.0.0
+go get github.com/WilsonSayago/authBase/v4@main
 ```
 
-Until a release tag is published, depend on a commit or a local `replace`. Do
-not treat this README as confirmation that `v3.0.0` already exists on the
-module proxy.
+After publication, pin the intended `v4.x.y` tag instead of tracking `main`.
 
 ```go
 import (
@@ -46,6 +48,15 @@ It shows validated JWT config, in-memory ports, `NewAuthenticationService`,
 
 Production adapters must implement `port.RefreshTokenStore` with the guarantees
 in [`docs/refresh-token-store.md`](docs/refresh-token-store.md).
+
+## Cursor pagination (v4)
+
+`core/domain` exports `CursorKey`, `PageRequest`, and `Page[T]` for forward-only
+keyset pagination. `RolePort.FindAll` and `RoleUseCase.GetRoles` accept
+`PageRequest` and return `Page[domain.Role]`; adapters own cursor encoding and
+the stable datastore ordering.
+
+See [`docs/MIGRATION_V4.md`](docs/MIGRATION_V4.md) for the v3 → v4 API change.
 
 ## Threat model (summary)
 
@@ -74,9 +85,13 @@ Do not distinguish failure reasons to clients for login/refresh.
 
 ## Compatibility
 
-v3 is a **breaking** major. Pre-v3 tokens, singleton constructors, and module
-path `github.com/WilsonSayago/authBase` (without `/v4`) are not supported.
-Migration steps: [`docs/MIGRATION_V3.md`](docs/MIGRATION_V3.md).
+v4 is a **breaking API** release because role listings moved from offset
+pagination to typed keyset pagination. JWT claims and refresh-session behavior
+are unchanged from v3, so upgrading v3 → v4 does not itself force a re-login
+when signing configuration remains the same.
+
+- v3 → v4: [`docs/MIGRATION_V4.md`](docs/MIGRATION_V4.md)
+- pre-v3 → modern API: [`docs/MIGRATION_V3.md`](docs/MIGRATION_V3.md)
 
 ## Verify
 
@@ -92,6 +107,7 @@ env GOCACHE=/private/tmp/authbase-go-cache GOWORK=off GOTOOLCHAIN=go1.27.1 \
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — library vs microservice responsibilities
 - [`docs/diagrams/`](docs/diagrams/) — interactive architecture / login-refresh / lifecycle diagrams (Archify)
+- [`docs/MIGRATION_V4.md`](docs/MIGRATION_V4.md) — v3 → v4 keyset pagination
 - [`docs/MIGRATION_V3.md`](docs/MIGRATION_V3.md) — API old → new
 - [`docs/SECURITY.md`](docs/SECURITY.md) — reporting and logging rules
 - [`docs/refresh-token-store.md`](docs/refresh-token-store.md) — store contract
@@ -104,6 +120,7 @@ MIT — see [`LICENSE`](LICENSE).
 
 ## Release status
 
-Module path `/v4`, MIT license, and private reporting via GitHub Security
-Advisories are in place. Publishing the `v3.0.0` tag remains a separate manual
-step — follow [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
+The v4 source is on the canonical `main` branch and an annotated `v4.0.0` tag
+exists locally, but that tag is not yet advertised by the canonical remote.
+Pushing the tag and verifying the Go module proxy remain manual release steps;
+see [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).

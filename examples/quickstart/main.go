@@ -1,4 +1,4 @@
-// Command quickstart wires authBase v3 with in-memory adapters.
+// Command quickstart wires authBase v4 with in-memory adapters.
 //
 // Demo only: replace memoryIdentity/memoryRefreshStore with your DB adapters
 // before production use. See docs/refresh-token-store.md for store guarantees.

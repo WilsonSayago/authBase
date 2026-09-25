@@ -9,12 +9,14 @@ applications provide ports and wire constructors explicitly.
 | Concern | Package API | Notes |
 |---------|-------------|--------|
 | Domain models | `core/domain` | `IUserGeneric`, roles, permissions, `RefreshSession`, `HashRefreshToken` |
+| Pagination contracts | `core/domain` | `CursorKey`, `PageRequest`, `Page[T]` for forward-only keyset pagination |
 | Use-case contracts | `core` | `AuthenticationUseCase`, `AuthorizationUseCase`, `Context`, sentinel errors |
 | Ports | `core/port` | `UserReader`, `CredentialReader`, `RefreshTokenStore`, `ValidationPort`, `RolePort` |
 | Authentication | `services.NewAuthenticationService` | Login, refresh rotation, validate, revoke family |
 | Authorization | `services.NewAuthorization` | Panic-safe `AuthorizeJWT` + `PoliciesGuard` |
 | JWT | `services.NewTokenManager`, `properties.Jwt` | Typed claims; refresh minting unexported |
 | Password hashing | `infra/secundary.ValidationService` | bcrypt adapter for `ValidationPort` |
+| Role operations | `services.RoleService` | Context-aware CRUD, `SetActive`, paginated `GetRoles` |
 
 ## What belongs in each microservice
 
@@ -35,8 +37,10 @@ cmd / bootstrap
     ├── tokens, _ := services.NewTokenManager(cfg)
     ├── authn, _ := services.NewAuthenticationService(users, creds, refresh, validation, cfg)
     ├── authz, _ := services.NewAuthorization(users, tokens)
+    ├── roles := services.GetRoleServiceInstance(rolePort)
     ├── POST /login    → authn.Login
     ├── POST /refresh  → authn.RefreshToken
+    ├── GET /roles      → roles.GetRoles(ctx, PageRequest)
     └── protected routes → authz.AuthorizeJWT() → PoliciesGuard(…)
 ```
 
@@ -75,8 +79,9 @@ Index and regenerate notes: [diagrams/README.md](diagrams/README.md).
 ## Versioning
 
 - **v4.x** — module path `github.com/WilsonSayago/authBase/v4` (required by Go for
-  major ≥ 2). Pre-v3 tokens and singleton constructors are not supported.
-- Migration: [MIGRATION_V3.md](MIGRATION_V3.md).
+  major ≥ 2). Role listings use typed keyset pagination.
+- v3 → v4: [MIGRATION_V4.md](MIGRATION_V4.md).
+- Pre-v3 migration: [MIGRATION_V3.md](MIGRATION_V3.md).
 - Publish gates: [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
 ## Related docs
@@ -85,5 +90,6 @@ Index and regenerate notes: [diagrams/README.md](diagrams/README.md).
 - [diagrams/README.md](diagrams/README.md) — interactive Archify diagrams
 - [refresh-token-store.md](refresh-token-store.md) — store contract
 - [SECURITY.md](SECURITY.md) — reporting and logging rules
+- [MIGRATION_V4.md](MIGRATION_V4.md) — v3 → v4 pagination changes
 - [MIGRATION_V3.md](MIGRATION_V3.md) — API old → new
 - [examples/quickstart](../examples/quickstart) — in-memory wiring demo

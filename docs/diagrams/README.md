@@ -1,6 +1,6 @@
 # Diagramas (Archify)
 
-Diagramas interactivos de la librería `authBase` v3. Abrí los `.html` en el navegador (tema claro/oscuro, pan/zoom, vistas guiadas).
+Diagramas interactivos de la librería `authBase` v4. Abrí los `.html` en el navegador (tema claro/oscuro, pan/zoom, vistas guiadas).
 
 > Contenido autorado en español. La UI fija del visor Archify permanece en inglés (`html lang` fallback).
 

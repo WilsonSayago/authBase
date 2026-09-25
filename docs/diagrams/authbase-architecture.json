@@ -8,7 +8,7 @@
     "repository": {
       "url": "https://github.com/WilsonSayago/authBase",
       "provider": "github",
-      "revision": "d1725d66406536920450af143531b0abc6a3d8ae"
+      "revision": "70337c16dd975e46e62d7ce1a72953e5918f8dfc"
     },
     "views": [
       {
@@ -21,13 +21,19 @@
         "id": "authz-path",
         "label": "Autorización",
         "focus": ["http", "authz", "tokens", "identity"],
-        "note": "AuthorizeJWT reutiliza TokenManager e Identity ports cableados en bootstrap."
+        "note": "AuthorizeJWT recibe un TokenManager del bootstrap; Authn encapsula otro con la misma config."
       },
       {
         "id": "boundary",
         "label": "Límites",
         "focus": ["bootstrap", "authn", "authz", "identity", "refresh"],
         "note": "La app provee ports; authBase no trae HTTP server ni DB."
+      },
+      {
+        "id": "pagination",
+        "label": "Roles paginados",
+        "focus": ["bootstrap", "identity", "domain"],
+        "note": "RolePort usa PageRequest y Page[T] para keyset pagination desde v4."
       }
     ]
   },
@@ -86,7 +92,7 @@
       "sublabel": "Parse · issue*",
       "pos": [540, 340],
       "size": [148, 56],
-      "tag": "shared",
+      "tag": "same cfg",
       "sources": [{ "path": "core/services/token_manager.go", "line": 38, "end_line": 57, "label": "TokenManager" }]
     },
     {
@@ -101,14 +107,15 @@
     {
       "id": "identity",
       "type": "database",
-      "label": "Identity ports",
-      "sublabel": "User · Credential",
+      "label": "Identity / Role ports",
+      "sublabel": "User · Credential · Role",
       "pos": [800, 40],
       "size": [152, 56],
       "tag": "app adapter",
       "sources": [
         { "path": "core/port/user_reader.go", "line": 10, "end_line": 12, "label": "UserReader" },
-        { "path": "core/port/credential_reader.go", "line": 14, "end_line": 16, "label": "CredentialReader" }
+        { "path": "core/port/credential_reader.go", "line": 14, "end_line": 16, "label": "CredentialReader" },
+        { "path": "core/port/role_port.go", "line": 9, "end_line": 15, "label": "RolePort" }
       ]
     },
     {
@@ -125,16 +132,19 @@
       "id": "domain",
       "type": "backend",
       "label": "core/domain",
-      "sublabel": "session · user",
+      "sublabel": "session · user · page",
       "pos": [1000, 360],
       "size": [132, 56],
-      "sources": [{ "path": "core/domain/refresh_session.go", "line": 8, "end_line": 22, "label": "RefreshSession" }]
+      "sources": [
+        { "path": "core/domain/refresh_session.go", "line": 8, "end_line": 22, "label": "RefreshSession" },
+        { "path": "core/domain/pagination.go", "line": 5, "end_line": 21, "label": "Keyset page" }
+      ]
     }
   ],
   "boundaries": [
     {
       "kind": "region",
-      "label": "Librería authBase/v3",
+      "label": "Librería authBase/v4",
       "wraps": ["authn", "authz", "jwt", "tokens", "validation"]
     },
     {
@@ -230,8 +240,9 @@
       "dot": "emerald",
       "title": "Camino principal",
       "items": [
-        "bootstrap cablea Authn + Authz con el mismo TokenManager",
-        "Refresh JWT solo sale después de Create/Rotate en el store"
+        "Authn posee tokens internos; Authz recibe otra instancia",
+        "Refresh JWT solo sale después de Create/Rotate en el store",
+        "RolePort comparte PageRequest / Page[T] para keyset pagination"
       ]
     },
     {

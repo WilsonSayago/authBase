@@ -1,4 +1,4 @@
-# Release checklist (authBase v3)
+# Release checklist (authBase v4.x)
 
 Do **not** create tags, GitHub releases, or push from automation until every
 item below is checked by a human maintainer.
@@ -7,7 +7,7 @@ item below is checked by a human maintainer.
 
 - [x] `git remote` points at `https://github.com/WilsonSayago/authBase.git`
       (not `middleware.git`).
-- [x] Module path is `github.com/WilsonSayago/authBase/v3`.
+- [x] Module path is `github.com/WilsonSayago/authBase/v4`.
 - [ ] Working tree is clean on the release commit.
 
 ## Legal and security
@@ -28,13 +28,14 @@ item below is checked by a human maintainer.
 - [ ] `govulncheck@v1.8.0 ./...` → no reachable vulnerabilities.
 - [ ] `go build ./examples/...` and `go test ./examples/...` pass.
 - [ ] External consumer module with
-      `replace github.com/WilsonSayago/authBase/v3 => <local>` builds.
+      `replace github.com/WilsonSayago/authBase/v4 => <local>` builds.
 - [ ] `git diff --check` clean.
-- [ ] Manual review of `docs/MIGRATION_V3.md`.
+- [ ] Manual review of `docs/MIGRATION_V4.md` and retained v3 guidance.
 
 ## Publish (manual only)
 
-- [ ] Annotated tag `v3.0.0` created locally after checklist completion.
+- [ ] The intended `v4.x.y` version and changelog entry are finalized.
+- [ ] Annotated `v4.x.y` tag created locally after checklist completion.
 - [ ] Tag pushed explicitly; never move or reuse the tag.
-- [ ] CHANGELOG date filled for `[3.0.0]`.
-- [ ] Proxy/`go list -m github.com/WilsonSayago/authBase/v3@v3.0.0` verified.
+- [ ] CHANGELOG date filled for the release.
+- [ ] Proxy/`go list -m github.com/WilsonSayago/authBase/v4@v4.x.y` verified.
