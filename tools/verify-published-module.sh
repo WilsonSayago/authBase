@@ -18,6 +18,7 @@ cd "${TMP_DIR}"
 
 go mod init example.com/authbase-consumer-smoke
 go get "${MODULE}@${VERSION}"
+go mod tidy
 go test -count=1 ./...
 
 MODULE_DIR="$(go list -m -f '{{.Dir}}' "${MODULE}")"

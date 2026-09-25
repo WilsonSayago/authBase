@@ -8,6 +8,11 @@ and this project intends to follow
 
 ## [Unreleased]
 
+### Fixed
+
+- Complete the temporary consumer's transitive checksums before compiling the
+  published-module smoke test.
+
 ## [4.0.1] - 2026-09-25
 
 ### Build
