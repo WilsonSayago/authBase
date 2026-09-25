@@ -18,7 +18,7 @@ explicitly.
 
 ## Install
 
-Until the `v4.0.0` tag is pushed to the canonical remote and visible through
+Until the `v4.0.1` tag is pushed to the canonical remote and visible through
 the Go module proxy, test the current v4 line from `main`:
 
 ```sh
@@ -123,7 +123,7 @@ MIT — see [`LICENSE`](LICENSE).
 
 ## Release status
 
-The v4 source is on the canonical `main` branch and an annotated `v4.0.0` tag
-exists locally, but that tag is not yet advertised by the canonical remote.
+The v4 source is on the canonical `main` branch and an annotated `v4.0.1` tag
+is prepared locally, but that tag is not yet advertised by the canonical remote.
 Pushing the tag and verifying the Go module proxy remain manual release steps;
 see [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
