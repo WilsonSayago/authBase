@@ -8,6 +8,8 @@ and this project intends to follow
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-09-25
+
 ### Security
 
 - Equalized password-verification work for missing, inactive, incorrect, and
@@ -105,7 +107,8 @@ First published `/v3` module (immutable in the Go module proxy).
 - `golang.org/x/crypto v0.57.0`.
 - Toolchain directive `go1.27.1` with minimum language `go 1.26.0`.
 
-[Unreleased]: https://github.com/WilsonSayago/authBase/compare/v4.1.0...HEAD
+[Unreleased]: https://github.com/WilsonSayago/authBase/compare/v4.2.0...HEAD
+[4.2.0]: https://github.com/WilsonSayago/authBase/compare/v4.1.0...v4.2.0
 [4.1.0]: https://github.com/WilsonSayago/authBase/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/WilsonSayago/authBase/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/WilsonSayago/authBase/releases/tag/v4.0.0
