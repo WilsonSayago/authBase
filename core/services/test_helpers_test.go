@@ -130,12 +130,16 @@ type fakeValidationPort struct {
 	checkPassword func(hashedPassword, password string) bool
 	checkCalls    int
 	hashCalls     int
+	hashErr       error
 }
 
 func (v *fakeValidationPort) HashPassword(password string) (string, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.hashCalls++
+	if v.hashErr != nil {
+		return "", v.hashErr
+	}
 	return "hashed:" + password, nil
 }
 

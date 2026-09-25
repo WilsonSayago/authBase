@@ -121,6 +121,9 @@ func TestInvalidCredentials(t *testing.T) {
 			if access != "" || refresh != "" {
 				t.Fatal("Login() returned tokens for invalid credentials")
 			}
+			if validate.checkCalls != 1 {
+				t.Fatalf("CheckPassword calls = %d, want 1", validate.checkCalls)
+			}
 		})
 	}
 }
@@ -263,6 +266,26 @@ func TestNewAuthenticationServiceRejectsInvalidConfig(t *testing.T) {
 	}
 	if svc != nil {
 		t.Fatal("NewAuthenticationService() returned service for invalid config")
+	}
+}
+
+func TestNewAuthenticationServiceRejectsDummyHashFailure(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeIdentityStore()
+	validate := &fakeValidationPort{hashErr: core.ErrUnavailable}
+	svc, err := NewAuthenticationService[fakeUser](
+		store,
+		store,
+		newFakeRefreshStore(),
+		validate,
+		testJwtConfig(),
+	)
+	if !errors.Is(err, core.ErrUnavailable) {
+		t.Fatalf("NewAuthenticationService() error = %v, want ErrUnavailable", err)
+	}
+	if svc != nil {
+		t.Fatal("NewAuthenticationService() returned service when dummy hashing failed")
 	}
 }
 

@@ -17,7 +17,10 @@ type AuthenticationService[T domain.IUserGeneric] struct {
 	refreshStore port.RefreshTokenStore
 	validatePort port.ValidationPort
 	tokens       *TokenManager
+	dummyHash    string
 }
+
+const dummyPassword = "authbase-dummy-password-never-use"
 
 // NewAuthenticationService constructs an authentication service with validated JWT configuration.
 func NewAuthenticationService[T domain.IUserGeneric](
@@ -43,12 +46,17 @@ func NewAuthenticationService[T domain.IUserGeneric](
 	if err != nil {
 		return nil, err
 	}
+	dummyHash, err := validatePort.HashPassword(dummyPassword)
+	if err != nil {
+		return nil, fmt.Errorf("create dummy credential: %w", err)
+	}
 	return &AuthenticationService[T]{
 		users:        users,
 		credentials:  credentials,
 		refreshStore: refreshStore,
 		validatePort: validatePort,
 		tokens:       tokens,
+		dummyHash:    dummyHash,
 	}, nil
 }
 
@@ -70,16 +78,19 @@ func GetAuthenticationInstance[T domain.IUserGeneric](
 
 func (a AuthenticationService[T]) Login(ctx context.Context, username, password string) (string, string, error) {
 	cred, err := a.credentials.FindCredentialsByUsername(ctx, username)
+	foundActive := err == nil && cred.Active
 	if err != nil {
-		if errors.Is(err, core.ErrNotFound) {
-			return "", "", core.ErrInvalidCredentials
+		if !errors.Is(err, core.ErrNotFound) {
+			return "", "", err
 		}
-		return "", "", err
 	}
-	if !cred.Active {
-		return "", "", core.ErrInvalidCredentials
+
+	hash := a.dummyHash
+	if foundActive {
+		hash = cred.PasswordHash
 	}
-	if !a.validatePort.CheckPassword(cred.PasswordHash, password) {
+	passwordMatches := a.validatePort.CheckPassword(hash, password)
+	if !foundActive || !passwordMatches {
 		return "", "", core.ErrInvalidCredentials
 	}
 
