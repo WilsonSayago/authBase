@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/WilsonSayago/authBase/v4/core/domain"
+	"github.com/WilsonSayago/authBase/v4/core/port"
 	"github.com/WilsonSayago/authBase/v4/infra/config/properties"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -35,24 +36,128 @@ type issuedTokens struct {
 	Session      domain.RefreshSession
 }
 
+// TokenCrypto is the explicit signer/verifier pair for one TokenManager.
+type TokenCrypto struct {
+	AccessSigner    port.TokenSigner
+	RefreshSigner   port.TokenSigner
+	AccessVerifier  port.TokenVerifier
+	RefreshVerifier port.TokenVerifier
+}
+
 // TokenManager verifies access/refresh tokens and privately issues pairs for
 // AuthenticationService. Callers outside this package must not mint refresh
 // tokens; only AuthenticationService persists sessions before returning them.
 type TokenManager struct {
-	cfg   properties.Jwt
-	now   func() time.Time
-	newID func() (string, error)
+	cfg    properties.Jwt
+	now    func() time.Time
+	newID  func() (string, error)
+	crypto TokenCrypto
 }
 
-// NewTokenManager validates cfg and returns an independent token manager.
+// NewTokenManager validates cfg and returns an independent HMAC token manager.
+// Issued tokens remain HS256. New tokens set typ; tokens without kid remain
+// acceptable so existing HMAC material continues to verify.
 func NewTokenManager(cfg properties.Jwt) (*TokenManager, error) {
+	crypto, err := NewHMACCrypto(cfg, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return NewTokenManagerWithCrypto(cfg, crypto)
+}
+
+// NewHMACCrypto builds the default HS256 signer/verifier pair.
+// previousAccess/previousRefresh may be nil. Empty kids keep legacy verify.
+func NewHMACCrypto(cfg properties.Jwt, previousAccess, previousRefresh []HMACKey) (TokenCrypto, error) {
+	if err := cfg.Validate(); err != nil {
+		return TokenCrypto{}, err
+	}
+	return NewHMACCryptoWithKeys(
+		HMACKey{Secret: []byte(cfg.SecretKey)},
+		HMACKey{Secret: []byte(cfg.RefreshSecret)},
+		previousAccess,
+		previousRefresh,
+	)
+}
+
+// NewHMACCryptoWithKeys builds HS256 adapters from explicit key material.
+// Empty kids keep legacy verify for tokens minted without kid.
+func NewHMACCryptoWithKeys(access, refresh HMACKey, previousAccess, previousRefresh []HMACKey) (TokenCrypto, error) {
+	if len(access.Secret) == 0 || len(refresh.Secret) == 0 {
+		return TokenCrypto{}, fmt.Errorf("hmac secret is required")
+	}
+	if access.ID != "" && access.ID == refresh.ID {
+		return TokenCrypto{}, fmt.Errorf("access and refresh kids must be different")
+	}
+	accessSigner, err := newHMACSigner(TokenTypeAccess, access)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	refreshSigner, err := newHMACSigner(TokenTypeRefresh, refresh)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	accessVerifier, err := newHMACVerifier(TokenTypeAccess, access, previousAccess, true)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	refreshVerifier, err := newHMACVerifier(TokenTypeRefresh, refresh, previousRefresh, true)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	return TokenCrypto{
+		AccessSigner:    accessSigner,
+		RefreshSigner:   refreshSigner,
+		AccessVerifier:  accessVerifier,
+		RefreshVerifier: refreshVerifier,
+	}, nil
+}
+
+// NewEd25519Crypto builds an EdDSA signer/verifier pair. Access and refresh
+// keys must be distinct. Previous keys are verification-only.
+func NewEd25519Crypto(access, refresh Ed25519Key, previousAccess, previousRefresh []Ed25519Key) (TokenCrypto, error) {
+	if access.ID == "" || refresh.ID == "" {
+		return TokenCrypto{}, fmt.Errorf("access and refresh kids are required")
+	}
+	if access.ID == refresh.ID {
+		return TokenCrypto{}, fmt.Errorf("access and refresh kids must be different")
+	}
+	accessSigner, err := newEd25519Signer(TokenTypeAccess, access)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	refreshSigner, err := newEd25519Signer(TokenTypeRefresh, refresh)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	accessVerifier, err := newEd25519Verifier(TokenTypeAccess, access, previousAccess)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	refreshVerifier, err := newEd25519Verifier(TokenTypeRefresh, refresh, previousRefresh)
+	if err != nil {
+		return TokenCrypto{}, err
+	}
+	return TokenCrypto{
+		AccessSigner:    accessSigner,
+		RefreshSigner:   refreshSigner,
+		AccessVerifier:  accessVerifier,
+		RefreshVerifier: refreshVerifier,
+	}, nil
+}
+
+// NewTokenManagerWithCrypto constructs a manager with explicit crypto adapters.
+func NewTokenManagerWithCrypto(cfg properties.Jwt, crypto TokenCrypto) (*TokenManager, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
+	if crypto.AccessSigner == nil || crypto.RefreshSigner == nil || crypto.AccessVerifier == nil || crypto.RefreshVerifier == nil {
+		return nil, fmt.Errorf("token signer and verifier are required")
+	}
 	return &TokenManager{
-		cfg:   cfg,
-		now:   time.Now,
-		newID: newRandomID,
+		cfg:    cfg,
+		now:    time.Now,
+		newID:  newRandomID,
+		crypto: crypto,
 	}, nil
 }
 
@@ -91,23 +196,23 @@ func (m *TokenManager) issueRotatedPair(subject, familyID string) (issuedTokens,
 
 // ParseAccess verifies an access token and returns typed claims.
 func (m *TokenManager) ParseAccess(tokenString string) (*TokenClaims, error) {
-	return m.parse(tokenString, TokenTypeAccess, m.cfg.SecretKey)
+	return m.parse(tokenString, TokenTypeAccess, m.crypto.AccessVerifier)
 }
 
 // ParseRefresh verifies a refresh token and returns typed claims.
 func (m *TokenManager) ParseRefresh(tokenString string) (*TokenClaims, error) {
-	return m.parse(tokenString, TokenTypeRefresh, m.cfg.RefreshSecret)
+	return m.parse(tokenString, TokenTypeRefresh, m.crypto.RefreshVerifier)
 }
 
 func (m *TokenManager) issuePair(subject, familyID string) (issuedTokens, error) {
 	if subject == "" {
 		return issuedTokens{}, fmt.Errorf("token subject must not be empty")
 	}
-	accessToken, _, err := m.issue(subject, TokenTypeAccess, "", m.cfg.SecretKey, m.cfg.ExpirationTime)
+	accessToken, _, err := m.issue(subject, TokenTypeAccess, "", m.crypto.AccessSigner, m.cfg.ExpirationTime)
 	if err != nil {
 		return issuedTokens{}, err
 	}
-	refreshToken, session, err := m.issue(subject, TokenTypeRefresh, familyID, m.cfg.RefreshSecret, m.cfg.RefreshTokenTime)
+	refreshToken, session, err := m.issue(subject, TokenTypeRefresh, familyID, m.crypto.RefreshSigner, m.cfg.RefreshTokenTime)
 	if err != nil {
 		return issuedTokens{}, err
 	}
@@ -122,7 +227,7 @@ func (m *TokenManager) issue(
 	subject string,
 	tokenType TokenType,
 	familyID string,
-	secret string,
+	signer port.TokenSigner,
 	lifetimeHours int,
 ) (string, domain.RefreshSession, error) {
 	jti, err := m.newID()
@@ -143,10 +248,9 @@ func (m *TokenManager) issue(
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 		},
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(secret))
+	signed, err := signer.Sign(claims)
 	if err != nil {
-		return "", domain.RefreshSession{}, fmt.Errorf("sign token: %w", err)
+		return "", domain.RefreshSession{}, err
 	}
 
 	session := domain.RefreshSession{}
@@ -163,25 +267,11 @@ func (m *TokenManager) issue(
 	return signed, session, nil
 }
 
-func (m *TokenManager) parse(tokenString string, expectedType TokenType, secret string) (*TokenClaims, error) {
+func (m *TokenManager) parse(tokenString string, expectedType TokenType, verifier port.TokenVerifier) (*TokenClaims, error) {
 	claims := &TokenClaims{}
-	token, err := jwt.ParseWithClaims(
-		tokenString,
-		claims,
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(secret), nil
-		},
-		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
-		jwt.WithExpirationRequired(),
-		jwt.WithIssuer(m.cfg.Issuer),
-		jwt.WithAudience(m.cfg.Audience),
-		jwt.WithIssuedAt(),
-		jwt.WithLeeway(time.Duration(m.cfg.LeewaySeconds)*time.Second),
-		jwt.WithStrictDecoding(),
-		jwt.WithTimeFunc(m.now),
-	)
+	token, err := verifier.Parse(tokenString, claims, parseOptions(m.cfg, m.now)...)
 	if err != nil {
-		return nil, fmt.Errorf("invalid token: %w", err)
+		return nil, err
 	}
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
