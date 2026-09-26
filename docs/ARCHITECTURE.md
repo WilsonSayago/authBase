@@ -14,7 +14,8 @@ applications provide ports and wire constructors explicitly.
 | Ports | `core/port` | `UserReader`, `CredentialReader`, `RefreshTokenStore`, optional session lifecycle capabilities, `ValidationPort`, `RolePort` |
 | Authentication | `services.NewAuthenticationService` | Login, privileged session establishment, refresh rotation, validate, revoke |
 | Authorization | `services.NewAuthorization` | Panic-safe `AuthorizeJWT` + `PoliciesGuard` |
-| JWT | `services.NewTokenManager`, `properties.Jwt` | Typed claims; refresh minting unexported |
+| JWT | `services.NewTokenManager`, `NewTokenManagerWithCrypto` | HMAC constructor plus explicit signer/verifier; refresh minting unexported |
+| Security events | `core.SecurityEventSink` | Optional typed sink; never carries secrets or raw PII |
 | Password hashing | `infra/secundary.ValidationService` | Argon2id PHC for new hashes; bcrypt legacy verification |
 | Role operations | `services.RoleService` | Context-aware CRUD, `SetActive`, paginated `GetRoles` |
 

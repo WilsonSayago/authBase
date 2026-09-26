@@ -75,6 +75,11 @@ Refresh stores may implement the additive `port.UserSessionRevoker` and
   atomic; replay of a consumed token revokes the family.
 - **Secrets**: access and refresh signing keys must differ and be at least 32
   bytes; never log tokens, password hashes, or raw secrets.
+- **Key agility**: `NewTokenManager` stays HMAC/HS256 compatible. Prefer
+  `NewTokenManagerWithCrypto` with Ed25519 and distinct access/refresh `kid`s
+  when multiple resource servers must verify without sharing a signing secret.
+  Overlap is: verify old+new, wait at least the longest token lifetime, then
+  retire the previous verifier. Do not follow `jku`/`x5u` from tokens.
 - **Credentials**: password material lives only in `CredentialRecord`, not on
   `IUserGeneric`; new hashes use Argon2id PHC while bcrypt remains verify-only
   for legacy rows.

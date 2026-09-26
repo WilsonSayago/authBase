@@ -8,6 +8,19 @@ and this project intends to follow
 
 ## [Unreleased]
 
+### Added
+
+- Explicit `TokenSigner`/`TokenVerifier` adapters, Ed25519 key rings, and
+  `NewTokenManagerWithCrypto` while keeping `NewTokenManager` HMAC-compatible.
+- Optional `SecurityEventSink` for typed login, refresh, revoke, and token
+  rejection events without secrets or raw PII.
+
+### Security
+
+- New tokens set distinct `typ` values (`at+jwt` / `rt+jwt`). HMAC tokens
+  without `kid` remain verifiable during the documented overlap window.
+- Verifiers use only locally configured keys and reject `jku`/`x5u`/`jwk`/`x5c`.
+
 ## [4.2.0] - 2026-09-25
 
 ### Security

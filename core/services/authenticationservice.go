@@ -18,6 +18,7 @@ type AuthenticationService[T domain.IUserGeneric] struct {
 	validatePort port.ValidationPort
 	tokens       *TokenManager
 	dummyHash    string
+	events       core.SecurityEventSink
 }
 
 const dummyPassword = "authbase-dummy-password-never-use"
@@ -46,6 +47,44 @@ func NewAuthenticationService[T domain.IUserGeneric](
 	if err != nil {
 		return nil, err
 	}
+	return newAuthenticationService(users, credentials, refreshStore, validatePort, tokens)
+}
+
+// NewAuthenticationServiceWithCrypto uses an explicit signer/verifier pair.
+func NewAuthenticationServiceWithCrypto[T domain.IUserGeneric](
+	users port.UserReader[T],
+	credentials port.CredentialReader,
+	refreshStore port.RefreshTokenStore,
+	validatePort port.ValidationPort,
+	cfg properties.Jwt,
+	crypto TokenCrypto,
+) (*AuthenticationService[T], error) {
+	if users == nil {
+		return nil, fmt.Errorf("authentication user reader is nil")
+	}
+	if credentials == nil {
+		return nil, fmt.Errorf("authentication credential reader is nil")
+	}
+	if refreshStore == nil {
+		return nil, fmt.Errorf("authentication refresh store is nil")
+	}
+	if validatePort == nil {
+		return nil, fmt.Errorf("authentication validation port is nil")
+	}
+	tokens, err := NewTokenManagerWithCrypto(cfg, crypto)
+	if err != nil {
+		return nil, err
+	}
+	return newAuthenticationService(users, credentials, refreshStore, validatePort, tokens)
+}
+
+func newAuthenticationService[T domain.IUserGeneric](
+	users port.UserReader[T],
+	credentials port.CredentialReader,
+	refreshStore port.RefreshTokenStore,
+	validatePort port.ValidationPort,
+	tokens *TokenManager,
+) (*AuthenticationService[T], error) {
 	dummyHash, err := validatePort.HashPassword(dummyPassword)
 	if err != nil {
 		return nil, fmt.Errorf("create dummy credential: %w", err)
@@ -57,7 +96,18 @@ func NewAuthenticationService[T domain.IUserGeneric](
 		validatePort: validatePort,
 		tokens:       tokens,
 		dummyHash:    dummyHash,
+		events:       core.NoopSecurityEventSink{},
 	}, nil
+}
+
+// WithSecurityEvents attaches an optional sink. Sink failures never fail auth.
+func (a *AuthenticationService[T]) WithSecurityEvents(sink core.SecurityEventSink) *AuthenticationService[T] {
+	if sink == nil {
+		a.events = core.NoopSecurityEventSink{}
+		return a
+	}
+	a.events = sink
+	return a
 }
 
 // GetAuthenticationInstance is deprecated; prefer NewAuthenticationService.
@@ -91,10 +141,16 @@ func (a AuthenticationService[T]) Login(ctx context.Context, username, password 
 	}
 	passwordMatches := a.validatePort.CheckPassword(hash, password)
 	if !foundActive || !passwordMatches {
+		a.record(ctx, core.SecurityEvent{Type: core.SecurityLoginFailure, Outcome: "failure"})
 		return "", "", core.ErrInvalidCredentials
 	}
-
-	return a.issueAndPersist(ctx, cred.UserID)
+	access, refresh, err := a.issueAndPersist(ctx, cred.UserID)
+	if err != nil {
+		a.record(ctx, core.SecurityEvent{Type: core.SecurityLoginFailure, ActorID: cred.UserID, Outcome: "failure"})
+		return "", "", err
+	}
+	a.record(ctx, core.SecurityEvent{Type: core.SecurityLoginSuccess, ActorID: cred.UserID, Outcome: "success"})
+	return access, refresh, nil
 }
 
 // EstablishSession creates a persisted token session for an identity that the
@@ -126,12 +182,14 @@ func (a AuthenticationService[T]) RevokeUserSessions(ctx context.Context, userID
 	if err := revoker.RevokeUser(ctx, userID); err != nil {
 		return fmt.Errorf("revoke user sessions: %w", err)
 	}
+	a.record(ctx, core.SecurityEvent{Type: core.SecurityUserRevoke, ActorID: userID, Outcome: "success"})
 	return nil
 }
 
 func (a AuthenticationService[T]) RefreshToken(ctx context.Context, refreshToken string) (string, string, error) {
 	claims, err := a.tokens.ParseRefresh(refreshToken)
 	if err != nil {
+		a.record(ctx, core.SecurityEvent{Type: core.SecurityTokenReject, Outcome: "failure"})
 		return "", "", core.ErrInvalidRefresh
 	}
 
@@ -154,6 +212,9 @@ func (a AuthenticationService[T]) RefreshToken(ctx context.Context, refreshToken
 			if revokeErr := a.refreshStore.RevokeFamily(ctx, claims.FamilyID); revokeErr != nil {
 				return "", "", errors.Join(core.ErrInvalidRefresh, err, fmt.Errorf("revoke family: %w", revokeErr))
 			}
+			a.record(ctx, core.SecurityEvent{
+				Type: core.SecurityRefreshReplay, ActorID: claims.Subject, FamilyID: claims.FamilyID, Outcome: "failure",
+			})
 			return "", "", core.ErrInvalidRefresh
 		}
 		if errors.Is(err, core.ErrRefreshNotFound) || errors.Is(err, core.ErrRefreshFamilyRevoked) {
@@ -162,6 +223,9 @@ func (a AuthenticationService[T]) RefreshToken(ctx context.Context, refreshToken
 		return "", "", err
 	}
 
+	a.record(ctx, core.SecurityEvent{
+		Type: core.SecurityRefreshSuccess, ActorID: user.GetId(), FamilyID: claims.FamilyID, TokenID: claims.ID, Outcome: "success",
+	})
 	return issued.AccessToken, issued.RefreshToken, nil
 }
 
@@ -170,12 +234,17 @@ func (a AuthenticationService[T]) RevokeRefreshFamily(ctx context.Context, famil
 	if familyID == "" {
 		return fmt.Errorf("refresh family id must not be empty")
 	}
-	return a.refreshStore.RevokeFamily(ctx, familyID)
+	if err := a.refreshStore.RevokeFamily(ctx, familyID); err != nil {
+		return err
+	}
+	a.record(ctx, core.SecurityEvent{Type: core.SecurityFamilyRevoke, FamilyID: familyID, Outcome: "success"})
+	return nil
 }
 
 func (a AuthenticationService[T]) ValidateToken(ctx context.Context, tokenString string) (domain.IUserGeneric, error) {
 	claims, err := a.tokens.ParseAccess(tokenString)
 	if err != nil {
+		a.record(ctx, core.SecurityEvent{Type: core.SecurityTokenReject, Outcome: "failure"})
 		return nil, fmt.Errorf("failed to parse token: %w", err)
 	}
 	user, err := a.requireActiveUser(ctx, claims.Subject)
@@ -212,4 +281,12 @@ func (a AuthenticationService[T]) requireActiveUser(ctx context.Context, id stri
 		return zero, core.ErrInactiveIdentity
 	}
 	return user, nil
+}
+
+func (a AuthenticationService[T]) record(ctx context.Context, event core.SecurityEvent) {
+	if a.events == nil {
+		return
+	}
+	defer func() { _ = recover() }()
+	a.events.Record(ctx, event)
 }
