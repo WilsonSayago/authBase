@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${1:-v4.0.0}"
+VERSION="${1:-}"
+if [[ -z "${VERSION}" ]]; then
+  echo "usage: $0 <published-version>  # example: v4.3.1" >&2
+  echo "v4.0.0 is not a resolvable published module version" >&2
+  exit 2
+fi
+if [[ "${VERSION}" == "v4.0.0" ]]; then
+  echo "v4.0.0 is not a resolvable published module version; use v4.0.1 or later" >&2
+  exit 2
+fi
 MODULE="github.com/WilsonSayago/authBase/v4"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/authbase-consumer.XXXXXX")"

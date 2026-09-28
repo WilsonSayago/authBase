@@ -21,7 +21,7 @@ explicitly.
 Install the published v4 release:
 
 ```sh
-go get github.com/WilsonSayago/authBase/v4@v4.2.0
+go get github.com/WilsonSayago/authBase/v4@v4.3.1
 ```
 
 Pin an explicit `v4.x.y` tag instead of tracking `main`.
@@ -119,7 +119,7 @@ After a release is visible through the public Go proxy, verify it from an
 isolated temporary consumer with no workspace or `replace` directive:
 
 ```sh
-GOWORK=off make consumer-published AUTHBASE_VERSION=v4.2.0
+GOWORK=off make consumer-published AUTHBASE_VERSION=v4.3.1
 ```
 
 ## Docs
@@ -139,6 +139,7 @@ MIT — see [`LICENSE`](LICENSE).
 
 ## Release status
 
-`v4.2.0` is the current release on the canonical remote. The external-consumer
-smoke test verifies the cached module without a workspace or `replace`; see
+`v4.3.1` is the current release on the canonical remote. The first proxy-resolvable
+v4 tag is `v4.0.1`. The external-consumer smoke test verifies the cached module
+without a workspace or `replace`; see
 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md).
