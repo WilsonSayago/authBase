@@ -1,6 +1,8 @@
 package services
 
 import (
+	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
@@ -85,8 +87,8 @@ func NewHMACCryptoWithKeys(access, refresh HMACKey, previousAccess, previousRefr
 	if len(access.Secret) == 0 || len(refresh.Secret) == 0 {
 		return TokenCrypto{}, fmt.Errorf("hmac secret is required")
 	}
-	if access.ID != "" && access.ID == refresh.ID {
-		return TokenCrypto{}, fmt.Errorf("access and refresh kids must be different")
+	if err := rejectSharedHMACMaterial(access, refresh, previousAccess, previousRefresh); err != nil {
+		return TokenCrypto{}, err
 	}
 	accessSigner, err := newHMACSigner(TokenTypeAccess, access)
 	if err != nil {
@@ -118,8 +120,8 @@ func NewEd25519Crypto(access, refresh Ed25519Key, previousAccess, previousRefres
 	if access.ID == "" || refresh.ID == "" {
 		return TokenCrypto{}, fmt.Errorf("access and refresh kids are required")
 	}
-	if access.ID == refresh.ID {
-		return TokenCrypto{}, fmt.Errorf("access and refresh kids must be different")
+	if err := rejectSharedEd25519Material(access, refresh, previousAccess, previousRefresh); err != nil {
+		return TokenCrypto{}, err
 	}
 	accessSigner, err := newEd25519Signer(TokenTypeAccess, access)
 	if err != nil {
@@ -159,6 +161,85 @@ func NewTokenManagerWithCrypto(cfg properties.Jwt, crypto TokenCrypto) (*TokenMa
 		newID:  newRandomID,
 		crypto: crypto,
 	}, nil
+}
+
+func rejectSharedHMACMaterial(access, refresh HMACKey, previousAccess, previousRefresh []HMACKey) error {
+	accessKeys := append([]HMACKey{access}, previousAccess...)
+	refreshKeys := append([]HMACKey{refresh}, previousRefresh...)
+	if err := rejectDuplicateKids(hmacKids(accessKeys), hmacKids(refreshKeys)); err != nil {
+		return err
+	}
+	for _, accessKey := range accessKeys {
+		for _, refreshKey := range refreshKeys {
+			if len(accessKey.Secret) == 0 || len(refreshKey.Secret) == 0 {
+				continue
+			}
+			if bytes.Equal(accessKey.Secret, refreshKey.Secret) {
+				return fmt.Errorf("access and refresh key material must be distinct")
+			}
+		}
+	}
+	return nil
+}
+
+func rejectSharedEd25519Material(access, refresh Ed25519Key, previousAccess, previousRefresh []Ed25519Key) error {
+	accessKeys := append([]Ed25519Key{access}, previousAccess...)
+	refreshKeys := append([]Ed25519Key{refresh}, previousRefresh...)
+	if err := rejectDuplicateKids(ed25519Kids(accessKeys), ed25519Kids(refreshKeys)); err != nil {
+		return err
+	}
+	accessPubs := make([]ed25519.PublicKey, 0, len(accessKeys))
+	for _, key := range accessKeys {
+		pub, err := key.public()
+		if err != nil {
+			return err
+		}
+		accessPubs = append(accessPubs, pub)
+	}
+	for _, key := range refreshKeys {
+		pub, err := key.public()
+		if err != nil {
+			return err
+		}
+		for _, accessPub := range accessPubs {
+			if bytes.Equal(accessPub, pub) {
+				return fmt.Errorf("access and refresh key material must be distinct")
+			}
+		}
+	}
+	return nil
+}
+
+func hmacKids(keys []HMACKey) []string {
+	out := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if key.ID != "" {
+			out = append(out, key.ID)
+		}
+	}
+	return out
+}
+
+func ed25519Kids(keys []Ed25519Key) []string {
+	out := make([]string, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, key.ID)
+	}
+	return out
+}
+
+func rejectDuplicateKids(accessKids, refreshKids []string) error {
+	seen := make(map[string]struct{}, len(accessKids)+len(refreshKids))
+	for _, kid := range append(append([]string{}, accessKids...), refreshKids...) {
+		if kid == "" {
+			continue
+		}
+		if _, exists := seen[kid]; exists {
+			return fmt.Errorf("access and refresh kids must be different")
+		}
+		seen[kid] = struct{}{}
+	}
+	return nil
 }
 
 func newTokenManagerForTest(cfg properties.Jwt, now func() time.Time, newID func() (string, error)) (*TokenManager, error) {

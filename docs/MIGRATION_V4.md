@@ -4,12 +4,15 @@ v4 changes role-list pagination from offset/page metadata to forward-only
 keyset pagination. Authentication, JWT claims, refresh rotation, and password
 handling are unchanged from v3.
 
+The first module version recorded by the public Go proxy is `v4.0.1`. Do not
+install `@v4.0.0`; that version is not resolvable for consumers.
+
 ## Module path
 
 Update the dependency and every import:
 
 ```sh
-go get github.com/WilsonSayago/authBase/v4@v4.0.0
+go get github.com/WilsonSayago/authBase/v4@v4.0.1
 go mod tidy
 ```
 

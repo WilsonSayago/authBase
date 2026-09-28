@@ -158,6 +158,98 @@ func TestEd25519RejectsAccessKeyOnRefresh(t *testing.T) {
 	}
 }
 
+func TestHMACRejectsSharedMaterialAcrossRings(t *testing.T) {
+	t.Parallel()
+	shared := []byte("shared-hmac-secret-material-32bytes!!")
+	other := []byte("other-hmac-secret-material-32bytes!!!")
+	cases := []struct {
+		name            string
+		access          HMACKey
+		refresh         HMACKey
+		previousAccess  []HMACKey
+		previousRefresh []HMACKey
+	}{
+		{
+			name:    "active/active",
+			access:  HMACKey{ID: "access-a", Secret: shared},
+			refresh: HMACKey{ID: "refresh-a", Secret: shared},
+		},
+		{
+			name:           "previous/active",
+			access:         HMACKey{ID: "access-a", Secret: other},
+			refresh:        HMACKey{ID: "refresh-a", Secret: shared},
+			previousAccess: []HMACKey{{ID: "access-old", Secret: shared}},
+		},
+		{
+			name:            "previous/previous",
+			access:          HMACKey{ID: "access-a", Secret: other},
+			refresh:         HMACKey{ID: "refresh-a", Secret: []byte("refresh-hmac-secret-material-32byt")},
+			previousAccess:  []HMACKey{{ID: "access-old", Secret: shared}},
+			previousRefresh: []HMACKey{{ID: "refresh-old", Secret: shared}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			crypto, err := NewHMACCryptoWithKeys(tc.access, tc.refresh, tc.previousAccess, tc.previousRefresh)
+			if err == nil {
+				t.Fatalf("expected error, got %#v", crypto)
+			}
+			if !strings.Contains(err.Error(), "key material must be distinct") {
+				t.Fatalf("err=%v", err)
+			}
+			if strings.Contains(err.Error(), string(shared)) {
+				t.Fatalf("leaked material: %v", err)
+			}
+		})
+	}
+}
+
+func TestEd25519RejectsSharedMaterialAcrossRings(t *testing.T) {
+	t.Parallel()
+	shared := mustEd25519(t, "access-shared")
+	refreshShared := Ed25519Key{ID: "refresh-shared", PrivateKey: shared.PrivateKey, PublicKey: shared.PublicKey}
+	otherAccess := mustEd25519(t, "access-a")
+	otherRefresh := mustEd25519(t, "refresh-a")
+	cases := []struct {
+		name            string
+		access          Ed25519Key
+		refresh         Ed25519Key
+		previousAccess  []Ed25519Key
+		previousRefresh []Ed25519Key
+	}{
+		{name: "active/active", access: shared, refresh: refreshShared},
+		{
+			name:           "previous/active",
+			access:         otherAccess,
+			refresh:        refreshShared,
+			previousAccess: []Ed25519Key{{ID: "access-old", PublicKey: shared.PublicKey}},
+		},
+		{
+			name:            "previous/previous",
+			access:          otherAccess,
+			refresh:         otherRefresh,
+			previousAccess:  []Ed25519Key{{ID: "access-old", PublicKey: shared.PublicKey}},
+			previousRefresh: []Ed25519Key{{ID: "refresh-old", PublicKey: shared.PublicKey}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			crypto, err := NewEd25519Crypto(tc.access, tc.refresh, tc.previousAccess, tc.previousRefresh)
+			if err == nil {
+				t.Fatalf("expected error, got %#v", crypto)
+			}
+			if !strings.Contains(err.Error(), "key material must be distinct") {
+				t.Fatalf("err=%v", err)
+			}
+			if strings.Contains(err.Error(), tc.access.ID) && strings.Contains(err.Error(), "/") {
+				t.Fatalf("unexpected path-like error: %v", err)
+			}
+		})
+	}
+}
+
 func TestRotationOverlapThenRetire(t *testing.T) {
 	t.Parallel()
 	cfg := validTokenCfg()
